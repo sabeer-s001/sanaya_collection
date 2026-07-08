@@ -18,7 +18,6 @@
     "razorpay": "^2.9.6",
     "react": "^18",
     "react-dom": "^18",
-    "react-instagram-embed": "^3.0.0",
     "react-social-media-embed": "^2.5.18"
   },
   "devDependencies": {
