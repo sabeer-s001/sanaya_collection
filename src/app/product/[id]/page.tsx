@@ -1,4 +1,4 @@
-import React from "react";
+import React, { cache } from "react";
 import { Metadata } from "next";
 import { dbConnect, ProductModel } from "@/lib/mongodb";
 import ProductDetailClient from "./ProductDetailClient";
@@ -6,10 +6,20 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 
 interface Props {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 }
+
+/**
+ * Cached database query for single request deduplication.
+ * Prevents multiple queries between generateMetadata and ProductDetailPage.
+ */
+const getProduct = cache(async (id: string) => {
+  await dbConnect();
+  // Select fields and execute query using lean() for maximum performance
+  return ProductModel.findOne({ id }).lean();
+});
 
 /**
  * Server-side dynamic SEO metadata generation.
@@ -17,8 +27,8 @@ interface Props {
  */
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   try {
-    await dbConnect();
-    const product = await ProductModel.findOne({ id: params.id }).lean();
+    const resolvedParams = await params;
+    const product = await getProduct(resolvedParams.id);
     
     if (!product) {
       return {
@@ -54,10 +64,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function ProductDetailPage({ params }: Props) {
   try {
-    await dbConnect();
-    
-    // Fetch product details
-    const product = await ProductModel.findOne({ id: params.id }).lean();
+    const resolvedParams = await params;
+    const product = await getProduct(resolvedParams.id);
     
     if (!product) {
       return (
@@ -78,17 +86,8 @@ export default async function ProductDetailPage({ params }: Props) {
       );
     }
 
-    // Fetch related products
-    const relatedProducts = await ProductModel.find({
-      category: product.category,
-      id: { $ne: product.id }
-    })
-      .limit(4)
-      .lean();
-
-    // Serialize Mongoose documents safely to plain JS objects for client passing
+    // Serialize Mongoose document safely to plain JS object for client passing
     const serializedProduct = JSON.parse(JSON.stringify(product));
-    const serializedRelatedProducts = JSON.parse(JSON.stringify(relatedProducts));
 
     const jsonLd = {
       "@context": "https://schema.org",
@@ -112,16 +111,17 @@ export default async function ProductDetailPage({ params }: Props) {
     };
 
     return (
-      <>
+      <div className="flex flex-col min-h-screen">
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
-        <ProductDetailClient 
-          product={serializedProduct} 
-          relatedProducts={serializedRelatedProducts} 
-        />
-      </>
+        <Navbar />
+        <main className="flex-grow py-12 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
+          <ProductDetailClient product={serializedProduct} />
+        </main>
+        <Footer />
+      </div>
     );
   } catch (error) {
     console.error("Error loading product detail page:", error);

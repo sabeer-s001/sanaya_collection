@@ -1,10 +1,9 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useApp, Product } from "@/context/AppContext";
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
 import ProductCard from "@/components/ProductCard";
 import { 
   Heart, 
@@ -12,19 +11,15 @@ import {
   Ruler, 
   X,
   ChevronDown,
-  ChevronUp,
-  Truck,
-  RotateCcw,
-  ShieldCheck
+  ChevronUp
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface ProductDetailClientProps {
   product: Product;
-  relatedProducts: Product[];
 }
 
-export default function ProductDetailClient({ product, relatedProducts }: ProductDetailClientProps) {
+export default function ProductDetailClient({ product }: ProductDetailClientProps) {
   const router = useRouter();
   const { wishlist, toggleWishlist, addToCart, session } = useApp();
 
@@ -34,6 +29,10 @@ export default function ProductDetailClient({ product, relatedProducts }: Produc
   const [quantity, setQuantity] = useState(1);
   const [isSizeChartOpen, setIsSizeChartOpen] = useState(false);
   const [isAdded, setIsAdded] = useState(false);
+  
+  // Related Products state (Client-side fetched to avoid blocking server-side page load)
+  const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
+  const [loadingRelated, setLoadingRelated] = useState(true);
   
   // Accordion state
   const [openSection, setOpenSection] = useState<string | null>("description");
@@ -52,6 +51,26 @@ export default function ProductDetailClient({ product, relatedProducts }: Produc
     }
   }, [product]);
 
+  // Client-side fetching of related products
+  useEffect(() => {
+    const fetchRelatedProducts = async () => {
+      try {
+        const response = await fetch(`/api/products?category=${encodeURIComponent(product.category)}&exclude=${product.id}&limit=4`);
+        if (response.ok) {
+          const data = await response.json();
+          setRelatedProducts(data);
+        }
+      } catch (err) {
+        console.error("Failed to load related products:", err);
+      } finally {
+        setLoadingRelated(false);
+      }
+    };
+    if (product?.id) {
+      fetchRelatedProducts();
+    }
+  }, [product?.id, product?.category]);
+
   const isWishlisted = wishlist.includes(product.id);
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -69,11 +88,7 @@ export default function ProductDetailClient({ product, relatedProducts }: Produc
 
   const handleBuyNow = () => {
     addToCart(product, selectedSize, selectedColor, quantity);
-    if (session) {
-      router.push("/checkout");
-    } else {
-      router.push("/dashboard?redirect=/checkout&info=login_required");
-    }
+    router.push("/checkout");
   };
 
   const toggleAccordion = (section: string) => {
@@ -81,274 +96,291 @@ export default function ProductDetailClient({ product, relatedProducts }: Produc
   };
 
   return (
-    <div className="flex flex-col min-h-screen">
-      <Navbar />
-
-      <main className="flex-grow py-12 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
-        {/* Product details grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16">
+    <div className="w-full">
+      {/* Product details grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16">
+        
+        {/* Left Column: Interactive Image Gallery */}
+        <div className="space-y-4">
           
-          {/* Left Column: Interactive Image Gallery */}
-          <div className="space-y-4">
-            
-            {/* Main view container with mouse zoom */}
-            <div 
-              className="aspect-[3/4] w-full bg-brand-bg rounded-2xl overflow-hidden relative shadow-sm border border-brand-primary/5 cursor-zoom-in"
-              onMouseMove={handleMouseMove}
-              onMouseEnter={() => setIsZoomed(true)}
-              onMouseLeave={() => setIsZoomed(false)}
+          {/* Main view container with mouse zoom */}
+          <div 
+            className="aspect-[3/4] w-full bg-brand-bg rounded-2xl overflow-hidden relative shadow-sm border border-brand-primary/5 cursor-zoom-in"
+            onMouseMove={handleMouseMove}
+            onMouseEnter={() => setIsZoomed(true)}
+            onMouseLeave={() => setIsZoomed(false)}
+          >
+            <Image
+              src={product.images[activeImageIdx]}
+              alt={product.name}
+              fill
+              priority
+              sizes="(max-width: 768px) 100vw, 50vw"
+              className="object-cover transition-transform duration-100"
+              style={{
+                transformOrigin: `${zoomPos.x}% ${zoomPos.y}%`,
+                transform: isZoomed ? "scale(2.2)" : "scale(1)"
+              }}
+            />
+
+            {/* Wishlist Button Overlay */}
+            <button
+              onClick={() => toggleWishlist(product.id)}
+              className="absolute top-4 right-4 p-3 bg-white/80 hover:bg-white text-brand-text hover:text-brand-accent rounded-full shadow-md backdrop-blur-sm transition-colors duration-300 z-10"
+              aria-label={isWishlisted ? "Remove from Wishlist" : "Add to Wishlist"}
             >
-              <img
-                src={product.images[activeImageIdx]}
-                alt={product.name}
-                className="w-full h-full object-cover transition-transform duration-100"
-                style={{
-                  transformOrigin: `${zoomPos.x}% ${zoomPos.y}%`,
-                  transform: isZoomed ? "scale(2.2)" : "scale(1)"
-                }}
-              />
+              <Heart size={20} className={isWishlisted ? "fill-brand-accent text-brand-accent scale-110" : "transition-transform"} />
+            </button>
 
-              {/* Wishlist Button Overlay */}
+            {/* Sale or Discount Tags */}
+            {product.discount > 0 && (
+              <span className="absolute top-4 left-4 bg-red-500 text-white text-[10px] font-bold tracking-widest uppercase px-3 py-1 rounded-full shadow-md z-10">
+                {product.discount}% OFF
+              </span>
+            )}
+          </div>
+
+          {/* Thumbnail Selection List */}
+          <div className="flex space-x-3 overflow-x-auto py-1">
+            {product.images.map((img, idx) => (
               <button
-                onClick={() => toggleWishlist(product.id)}
-                className="absolute top-4 right-4 p-3 bg-white/80 hover:bg-white text-brand-text hover:text-brand-accent rounded-full shadow-md backdrop-blur-sm transition-colors duration-300"
-                aria-label={isWishlisted ? "Remove from Wishlist" : "Add to Wishlist"}
+                key={idx}
+                onClick={() => setActiveImageIdx(idx)}
+                className={`w-20 h-24 rounded-lg overflow-hidden border-2 bg-white flex-shrink-0 relative transition-all ${
+                  activeImageIdx === idx ? "border-brand-accent shadow-md scale-95" : "border-brand-lightGray opacity-70 hover:opacity-100"
+                }`}
+                aria-label={`View image ${idx + 1}`}
               >
-                <Heart size={20} className={isWishlisted ? "fill-brand-accent text-brand-accent scale-110" : "transition-transform"} />
+                <Image 
+                  src={img} 
+                  alt="Thumbnail" 
+                  fill 
+                  sizes="80px"
+                  className="object-cover" 
+                />
               </button>
+            ))}
+          </div>
+        </div>
 
-              {/* Sale or Discount Tags */}
-              {product.discount > 0 && (
-                <span className="absolute top-4 left-4 bg-red-500 text-white text-[10px] font-bold tracking-widest uppercase px-3 py-1 rounded-full shadow-md">
-                  {product.discount}% OFF
-                </span>
-              )}
+        {/* Right Column: Garment specifications & actions */}
+        <div className="flex flex-col justify-between space-y-6">
+          
+          {/* Title & Brand */}
+          <div>
+            <span className="text-xs uppercase tracking-[0.25em] font-semibold text-brand-accent">{product.category}</span>
+            <h1 className="font-serif text-3xl font-bold text-brand-text mt-1">{product.name}</h1>
+            
+            {/* Price Row */}
+            <div className="flex items-baseline space-x-4 mt-6">
+              <span className="text-3xl font-bold text-brand-accent">₹{product.salePrice}</span>
+              <span className="text-base text-brand-darkGray line-through">₹{product.originalPrice}</span>
+              <span className="text-xs font-bold text-green-600 bg-green-50 px-3 py-1 rounded-full">
+                You Save ₹{product.originalPrice - product.salePrice} ({product.discount}% OFF)
+              </span>
             </div>
 
-            {/* Thumbnail Selection List */}
-            <div className="flex space-x-3 overflow-x-auto py-1">
-              {product.images.map((img, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => setActiveImageIdx(idx)}
-                  className={`w-20 h-24 rounded-lg overflow-hidden border-2 bg-white flex-shrink-0 transition-all ${
-                    activeImageIdx === idx ? "border-brand-accent shadow-md scale-95" : "border-brand-lightGray opacity-70 hover:opacity-100"
-                  }`}
-                  aria-label={`View image ${idx + 1}`}
-                >
-                  <img src={img} alt="Thumbnail" className="w-full h-full object-cover" />
-                </button>
-              ))}
+            {/* Stock status indicator */}
+            <div className="mt-4 flex items-center space-x-2">
+              <div className={`w-2.5 h-2.5 rounded-full ${product.inStock ? "bg-green-500 animate-pulse" : "bg-red-500"}`} />
+              <span className="text-xs font-semibold uppercase tracking-wider text-brand-text">
+                {product.inStock ? "In Stock & Ready to Ship" : "Currently Out of Stock"}
+              </span>
             </div>
           </div>
 
-          {/* Right Column: Garment specifications & actions */}
-          <div className="flex flex-col justify-between space-y-6">
-            
-            {/* Title & Brand */}
-            <div>
-              <span className="text-xs uppercase tracking-[0.25em] font-semibold text-brand-accent">{product.category}</span>
-              <h1 className="font-serif text-3xl font-bold text-brand-text mt-1">{product.name}</h1>
-              
-              {/* Price Row */}
-              <div className="flex items-baseline space-x-4 mt-6">
-                <span className="text-3xl font-bold text-brand-accent">₹{product.salePrice}</span>
-                <span className="text-base text-brand-darkGray line-through">₹{product.originalPrice}</span>
-                <span className="text-xs font-bold text-green-600 bg-green-50 px-3 py-1 rounded-full">
-                  You Save ₹{product.originalPrice - product.salePrice} ({product.discount}% OFF)
-                </span>
-              </div>
+          <hr className="border-brand-lightGray" />
 
-              {/* Stock status indicator */}
-              <div className="mt-4 flex items-center space-x-2">
-                <div className={`w-2.5 h-2.5 rounded-full ${product.inStock ? "bg-green-500 animate-pulse" : "bg-red-500"}`} />
-                <span className="text-xs font-semibold uppercase tracking-wider text-brand-text">
-                  {product.inStock ? "In Stock & Ready to Ship" : "Currently Out of Stock"}
-                </span>
+          {/* Options selecting area */}
+          <div className="space-y-6">
+            
+            {/* Size Selector */}
+            <div>
+              <div className="flex justify-between items-center text-xs font-semibold text-brand-text mb-3">
+                <span>SELECT SIZE</span>
+                <button 
+                  type="button"
+                  onClick={() => setIsSizeChartOpen(true)}
+                  className="text-brand-accent hover:underline flex items-center space-x-1"
+                >
+                  <Ruler size={14} /> <span>Size Guide</span>
+                </button>
+              </div>
+              <div className="flex flex-wrap gap-3">
+                {product.sizes.map((size) => (
+                  <button
+                    key={size}
+                    onClick={() => setSelectedSize(size)}
+                    className={`min-w-[48px] h-12 border text-xs font-bold rounded-lg transition-all flex items-center justify-center ${
+                      selectedSize === size
+                        ? "border-brand-accent bg-brand-accent text-white shadow-md"
+                        : "border-brand-lightGray hover:border-brand-accent text-brand-text"
+                    }`}
+                  >
+                    {size}
+                  </button>
+                ))}
               </div>
             </div>
 
-            <hr className="border-brand-lightGray" />
-
-            {/* Options selecting area */}
-            <div className="space-y-6">
-              
-              {/* Size Selector */}
+            {/* Color Selector */}
+            {product.colors && product.colors.length > 0 && (
               <div>
-                <div className="flex justify-between items-center text-xs font-semibold text-brand-text mb-3">
-                  <span>SELECT SIZE</span>
-                  <button 
-                    type="button"
-                    onClick={() => setIsSizeChartOpen(true)}
-                    className="text-brand-accent hover:underline flex items-center space-x-1"
-                  >
-                    <Ruler size={14} /> <span>Size Guide</span>
-                  </button>
-                </div>
+                <span className="text-xs font-semibold text-brand-text block mb-3">SELECT COLOR</span>
                 <div className="flex flex-wrap gap-3">
-                  {product.sizes.map((size) => (
+                  {product.colors.map((color) => (
                     <button
-                      key={size}
-                      onClick={() => setSelectedSize(size)}
-                      className={`min-w-[48px] h-12 border text-xs font-bold rounded-lg transition-all flex items-center justify-center ${
-                        selectedSize === size
-                          ? "border-brand-accent bg-brand-accent text-white shadow-md"
+                      key={color}
+                      onClick={() => setSelectedColor(color)}
+                      className={`px-4 py-2 border text-xs font-semibold rounded-lg transition-all ${
+                        selectedColor === color
+                          ? "border-brand-accent bg-brand-accent/5 text-brand-accent shadow-sm"
                           : "border-brand-lightGray hover:border-brand-accent text-brand-text"
                       }`}
                     >
-                      {size}
+                      {color}
                     </button>
                   ))}
                 </div>
               </div>
+            )}
 
-              {/* Color Selector */}
-              {product.colors && product.colors.length > 0 && (
-                <div>
-                  <span className="text-xs font-semibold text-brand-text block mb-3">SELECT COLOR</span>
-                  <div className="flex flex-wrap gap-3">
-                    {product.colors.map((color) => (
-                      <button
-                        key={color}
-                        onClick={() => setSelectedColor(color)}
-                        className={`px-4 py-2 border text-xs font-semibold rounded-lg transition-all ${
-                          selectedColor === color
-                            ? "border-brand-accent bg-brand-accent/5 text-brand-accent shadow-sm"
-                            : "border-brand-lightGray hover:border-brand-accent text-brand-text"
-                        }`}
-                      >
-                        {color}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Quantity Selector */}
-              <div>
-                <span className="text-xs font-semibold text-brand-text block mb-3">QUANTITY</span>
-                <div className="inline-flex items-center border border-brand-lightGray rounded-lg bg-white shadow-sm">
-                  <button
-                    onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                    className="px-4 py-2.5 text-brand-darkGray hover:text-brand-primary text-sm font-semibold"
-                  >
-                    -
-                  </button>
-                  <span className="px-4 text-xs font-bold">{quantity}</span>
-                  <button
-                    onClick={() => setQuantity(quantity + 1)}
-                    className="px-4 py-2.5 text-brand-darkGray hover:text-brand-primary text-sm font-semibold"
-                  >
-                    +
-                  </button>
-                </div>
-              </div>
-
-            </div>
-
-            {/* CTAs */}
-            <div className="space-y-3 pt-2">
-              <div className="flex flex-col sm:flex-row gap-3">
+            {/* Quantity Selector */}
+            <div>
+              <span className="text-xs font-semibold text-brand-text block mb-3">QUANTITY</span>
+              <div className="inline-flex items-center border border-brand-lightGray rounded-lg bg-white shadow-sm">
                 <button
-                  disabled={!product.inStock}
-                  onClick={handleAddToCart}
-                  className={`flex-1 text-center text-xs tracking-widest uppercase font-semibold py-4 rounded-full transition-colors flex items-center justify-center space-x-2 ${
-                    !product.inStock
-                      ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                      : isAdded
-                        ? "bg-green-600 text-white"
-                        : "bg-brand-accent text-white hover:bg-brand-primary shadow-lg shadow-brand-accent/15"
-                  }`}
+                  onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                  className="px-4 py-2.5 text-brand-darkGray hover:text-brand-primary text-sm font-semibold"
                 >
-                  <ShoppingBag size={16} />
-                  <span>{isAdded ? "Added to Cart!" : "Add To Cart"}</span>
+                  -
                 </button>
+                <span className="px-4 text-xs font-bold">{quantity}</span>
                 <button
-                  disabled={!product.inStock}
-                  onClick={handleBuyNow}
-                  className={`flex-1 text-center text-xs tracking-widest uppercase font-semibold py-4 rounded-full transition-colors ${
-                    !product.inStock
-                      ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                      : "bg-brand-text text-white hover:bg-brand-accent"
-                  }`}
+                  onClick={() => setQuantity(quantity + 1)}
+                  className="px-4 py-2.5 text-brand-darkGray hover:text-brand-primary text-sm font-semibold"
                 >
-                  Buy It Now
+                  +
                 </button>
-              </div>
-            </div>
-
-            <hr className="border-brand-lightGray" />
-
-            {/* Product Details Accordions */}
-            <div className="border border-brand-lightGray rounded-xl overflow-hidden bg-white text-xs sm:text-sm">
-              {/* Description */}
-              <div className="border-b border-brand-lightGray">
-                <button 
-                  onClick={() => toggleAccordion("description")}
-                  className="w-full p-4 flex justify-between items-center text-left font-serif font-bold text-brand-text"
-                >
-                  <span>Description & Styling Guides</span>
-                  {openSection === "description" ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                </button>
-                {openSection === "description" && (
-                  <div className="p-4 pt-0 text-brand-darkGray leading-relaxed space-y-2">
-                    <p>{product.description}</p>
-                    <p><strong>Fabric Blend:</strong> {product.fabric}</p>
-                  </div>
-                )}
-              </div>
-
-              {/* Care Instructions */}
-              <div className="border-b border-brand-lightGray">
-                <button 
-                  onClick={() => toggleAccordion("care")}
-                  className="w-full p-4 flex justify-between items-center text-left font-serif font-bold text-brand-text"
-                >
-                  <span>Garment Care & Fabric Details</span>
-                  {openSection === "care" ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                </button>
-                {openSection === "care" && (
-                  <div className="p-4 pt-0 text-brand-darkGray leading-relaxed">
-                    <p>{product.careInstructions}</p>
-                  </div>
-                )}
-              </div>
-
-              {/* Shipping & Returns */}
-              <div className="">
-                <button 
-                  onClick={() => toggleAccordion("shipping")}
-                  className="w-full p-4 flex justify-between items-center text-left font-serif font-bold text-brand-text"
-                >
-                  <span>Shipping & Returns</span>
-                  {openSection === "shipping" ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                </button>
-                {openSection === "shipping" && (
-                  <div className="p-4 pt-0 text-brand-darkGray leading-relaxed space-y-2">
-                    <p>{product.shippingInfo}</p>
-                    <p>{product.returnPolicy}</p>
-                  </div>
-                )}
               </div>
             </div>
 
           </div>
-        </div>
 
-        {/* Related Products Grid */}
-        {relatedProducts.length > 0 && (
-          <section className="mt-24">
-            <h2 className="font-serif text-2xl font-bold text-brand-text mb-8 text-center sm:text-left">
-              You May Also Like
-            </h2>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-              {relatedProducts.map((p) => (
-                <ProductCard key={p.id} product={p} />
-              ))}
+          {/* CTAs */}
+          <div className="space-y-3 pt-2">
+            <div className="flex flex-col sm:flex-row gap-3">
+              <button
+                disabled={!product.inStock}
+                onClick={handleAddToCart}
+                className={`flex-1 text-center text-xs tracking-widest uppercase font-semibold py-4 rounded-full transition-colors flex items-center justify-center space-x-2 ${
+                  !product.inStock
+                    ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                    : isAdded
+                      ? "bg-green-600 text-white"
+                      : "bg-brand-accent text-white hover:bg-brand-primary shadow-lg shadow-brand-accent/15"
+                }`}
+              >
+                <ShoppingBag size={16} />
+                <span>{isAdded ? "Added to Cart!" : "Add To Cart"}</span>
+              </button>
+              <button
+                disabled={!product.inStock}
+                onClick={handleBuyNow}
+                className={`flex-1 text-center text-xs tracking-widest uppercase font-semibold py-4 rounded-full transition-colors ${
+                  !product.inStock
+                    ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                    : "bg-brand-text text-white hover:bg-brand-accent"
+                }`}
+              >
+                Buy It Now
+              </button>
             </div>
-          </section>
+          </div>
+
+          <hr className="border-brand-lightGray" />
+
+          {/* Product Details Accordions */}
+          <div className="border border-brand-lightGray rounded-xl overflow-hidden bg-white text-xs sm:text-sm">
+            {/* Description */}
+            <div className="border-b border-brand-lightGray">
+              <button 
+                onClick={() => toggleAccordion("description")}
+                className="w-full p-4 flex justify-between items-center text-left font-serif font-bold text-brand-text"
+              >
+                <span>Description & Styling Guides</span>
+                {openSection === "description" ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+              </button>
+              {openSection === "description" && (
+                <div className="p-4 pt-0 text-brand-darkGray leading-relaxed space-y-2">
+                  <p>{product.description}</p>
+                  <p><strong>Fabric Blend:</strong> {product.fabric}</p>
+                </div>
+              )}
+            </div>
+
+            {/* Care Instructions */}
+            <div className="border-b border-brand-lightGray">
+              <button 
+                onClick={() => toggleAccordion("care")}
+                className="w-full p-4 flex justify-between items-center text-left font-serif font-bold text-brand-text"
+              >
+                <span>Garment Care & Fabric Details</span>
+                {openSection === "care" ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+              </button>
+              {openSection === "care" && (
+                <div className="p-4 pt-0 text-brand-darkGray leading-relaxed">
+                  <p>{product.careInstructions}</p>
+                </div>
+              )}
+            </div>
+
+            {/* Shipping & Returns */}
+            <div className="">
+              <button 
+                onClick={() => toggleAccordion("shipping")}
+                className="w-full p-4 flex justify-between items-center text-left font-serif font-bold text-brand-text"
+              >
+                <span>Shipping & Returns</span>
+                {openSection === "shipping" ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+              </button>
+              {openSection === "shipping" && (
+                <div className="p-4 pt-0 text-brand-darkGray leading-relaxed space-y-2">
+                  <p>{product.shippingInfo}</p>
+                  <p>{product.returnPolicy}</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      {/* Related Products Grid */}
+      <section className="mt-24">
+        <h2 className="font-serif text-2xl font-bold text-brand-text mb-8 text-center sm:text-left">
+          You May Also Like
+        </h2>
+        {loadingRelated ? (
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+            {[...Array(4)].map((_, idx) => (
+              <div key={idx} className="animate-pulse bg-white border border-neutral-100 rounded-[4px] p-4 flex flex-col space-y-4 shadow-[0_4px_12px_rgba(0,0,0,0.02)]">
+                <div className="aspect-[3/4] bg-neutral-100 rounded w-full relative" />
+                <div className="h-4 bg-neutral-100 rounded w-2/3 mt-2" />
+                <div className="h-4 bg-neutral-100 rounded w-1/3 mt-1" />
+              </div>
+            ))}
+          </div>
+        ) : relatedProducts.length > 0 ? (
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+            {relatedProducts.map((p) => (
+              <ProductCard key={p.id} product={p} />
+            ))}
+          </div>
+        ) : (
+          <p className="text-center text-xs text-brand-darkGray py-4">No related products found.</p>
         )}
-      </main>
+      </section>
 
       {/* Size Chart Modal */}
       <AnimatePresence>
@@ -417,8 +449,6 @@ export default function ProductDetailClient({ product, relatedProducts }: Produc
           </div>
         )}
       </AnimatePresence>
-
-      <Footer />
     </div>
   );
 }

@@ -49,7 +49,7 @@ function DashboardContent() {
   const [activeTab, setActiveTab] = useState("orders");
   
   // Auth screen states
-  const [authMode, setAuthMode] = useState<"login" | "signup" | "forgot">("signup");
+  const [authMode, setAuthMode] = useState<"login" | "signup" | "forgot">("login");
   const [authRole, setAuthRole] = useState<"customer" | "admin">("customer");
   const [authEmail, setAuthEmail] = useState("");
   const [authPassword, setAuthPassword] = useState("");
@@ -222,29 +222,20 @@ function DashboardContent() {
               {authMode === "login" && (
                 <form onSubmit={handleLoginSubmit} className="space-y-4">
                   <div className="text-center pb-2">
-                    <span className="text-xs uppercase tracking-[0.25em] font-semibold text-brand-accent">Welcome</span>
-                    <h2 className="font-serif text-2xl font-bold text-brand-text mt-1">Sign In To Account</h2>
+                    <span className="text-xs uppercase tracking-[0.25em] font-semibold text-brand-accent">Staff Portal</span>
+                    <h2 className="font-serif text-2xl font-bold text-brand-text mt-1">Administrator Sign In</h2>
                   </div>
 
                   {/* Demo login helper */}
                   <div className="p-3 bg-brand-bg rounded-xl text-[11px] text-brand-darkGray border border-brand-primary/10">
-                    <p className="font-semibold text-brand-accent uppercase tracking-wider mb-2">Demo Credentials Quick-Click:</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      <button 
-                        type="button" 
-                        onClick={() => handleQuickLogin("customer")}
-                        className="bg-white hover:bg-brand-primary hover:text-white px-2 py-1.5 rounded border border-brand-lightGray text-left"
-                      >
-                        👩 Customer Login
-                      </button>
-                      <button 
-                        type="button" 
-                        onClick={() => handleQuickLogin("admin")}
-                        className="bg-white hover:bg-brand-primary hover:text-white px-2 py-1.5 rounded border border-brand-lightGray text-left"
-                      >
-                        ⚙️ Staff Admin Login
-                      </button>
-                    </div>
+                    <p className="font-semibold text-brand-accent uppercase tracking-wider mb-2">Admin Credentials Quick-Click:</p>
+                    <button 
+                      type="button" 
+                      onClick={() => handleQuickLogin("admin")}
+                      className="w-full bg-white hover:bg-brand-primary hover:text-white px-2 py-1.5 rounded border border-brand-lightGray text-center transition-all font-semibold"
+                    >
+                      ⚙️ Staff Admin Login
+                    </button>
                   </div>
 
                   <div>
@@ -256,21 +247,12 @@ function DashboardContent() {
                       value={authEmail}
                       onChange={(e) => setAuthEmail(e.target.value)}
                       className="w-full bg-brand-bg text-brand-text text-xs px-4 py-3 rounded-lg border border-brand-lightGray focus:border-brand-accent focus:outline-none"
-                      placeholder="e.g. customer@example.com"
+                      placeholder="e.g. admin@sanaya.com"
                     />
                   </div>
 
                   <div>
-                    <div className="flex justify-between items-center mb-1">
-                      <label htmlFor="auth-login-password" className="text-xs font-semibold text-brand-text">Password</label>
-                      <button
-                        type="button"
-                        onClick={() => { setAuthMode("forgot"); setFeedback(null); }}
-                        className="text-[11px] text-brand-accent hover:underline"
-                      >
-                        Forgot Password?
-                      </button>
-                    </div>
+                    <label htmlFor="auth-login-password" className="text-xs font-semibold text-brand-text block mb-1">Password</label>
                     <input
                       id="auth-login-password"
                       type="password"
@@ -296,138 +278,6 @@ function DashboardContent() {
                     className="w-full bg-brand-accent hover:bg-brand-primary text-white text-xs py-3.5 rounded-full font-semibold uppercase tracking-widest transition-all"
                   >
                     Log In
-                  </button>
-
-                  <p className="text-center text-xs text-brand-darkGray pt-2">
-                    Don&rsquo;t have an account?{" "}
-                    <button
-                      type="button"
-                      onClick={() => { setAuthMode("signup"); setFeedback(null); }}
-                      className="text-brand-accent font-semibold hover:underline"
-                    >
-                      Sign Up Now
-                    </button>
-                  </p>
-                </form>
-              )}
-
-              {authMode === "signup" && (
-                <form onSubmit={handleSignupSubmit} className="space-y-4">
-                  <div className="text-center pb-2">
-                    <span className="text-xs uppercase tracking-[0.25em] font-semibold text-brand-accent">Register</span>
-                    <h2 className="font-serif text-2xl font-bold text-brand-text mt-1">Create Account</h2>
-                  </div>
-
-                  <div>
-                    <label htmlFor="auth-signup-name" className="text-xs font-semibold text-brand-text block mb-1">Full Name</label>
-                    <input
-                      id="auth-signup-name"
-                      type="text"
-                      required
-                      value={authName}
-                      onChange={(e) => setAuthName(e.target.value)}
-                      className="w-full bg-brand-bg text-brand-text text-xs px-4 py-3 rounded-lg border border-brand-lightGray focus:border-brand-accent focus:outline-none"
-                      placeholder="e.g. Aanya Verma"
-                    />
-                  </div>
-
-                  <div>
-                    <label htmlFor="auth-signup-email" className="text-xs font-semibold text-brand-text block mb-1">Email Address</label>
-                    <input
-                      id="auth-signup-email"
-                      type="email"
-                      required
-                      value={authEmail}
-                      onChange={(e) => setAuthEmail(e.target.value)}
-                      className="w-full bg-brand-bg text-brand-text text-xs px-4 py-3 rounded-lg border border-brand-lightGray focus:border-brand-accent focus:outline-none"
-                      placeholder="e.g. customer@example.com"
-                    />
-                  </div>
-
-                  <div>
-                    <label htmlFor="auth-signup-password" className="text-xs font-semibold text-brand-text block mb-1">Create Password</label>
-                    <input
-                      id="auth-signup-password"
-                      type="password"
-                      required
-                      value={authPassword}
-                      onChange={(e) => setAuthPassword(e.target.value)}
-                      className="w-full bg-brand-bg text-brand-text text-xs px-4 py-3 rounded-lg border border-brand-lightGray focus:border-brand-accent focus:outline-none"
-                      placeholder="Min. 8 characters"
-                    />
-                  </div>
-
-                  {feedback && (
-                    <div className={`p-3 rounded-lg flex items-start space-x-2 text-xs ${
-                      feedback.success ? "bg-green-50 text-green-800" : "bg-red-50 text-red-800"
-                    }`}>
-                      <AlertCircle size={14} className="flex-shrink-0 mt-0.5" />
-                      <span>{feedback.message}</span>
-                    </div>
-                  )}
-
-                  <button
-                    type="submit"
-                    className="w-full bg-brand-accent hover:bg-brand-primary text-white text-xs py-3.5 rounded-full font-semibold uppercase tracking-widest transition-all"
-                  >
-                    Register
-                  </button>
-
-                  <p className="text-center text-xs text-brand-darkGray pt-2">
-                    Already have an account?{" "}
-                    <button
-                      type="button"
-                      onClick={() => { setAuthMode("login"); setFeedback(null); }}
-                      className="text-brand-accent font-semibold hover:underline"
-                    >
-                      Log In
-                    </button>
-                  </p>
-                </form>
-              )}
-
-              {authMode === "forgot" && (
-                <form onSubmit={handleForgotSubmit} className="space-y-4">
-                  <div className="text-center pb-2">
-                    <span className="text-xs uppercase tracking-[0.25em] font-semibold text-brand-accent">Reset password</span>
-                    <h2 className="font-serif text-2xl font-bold text-brand-text mt-1">Forgot Password</h2>
-                  </div>
-
-                  <div>
-                    <label htmlFor="auth-forgot-email" className="text-xs font-semibold text-brand-text block mb-1">Email Address</label>
-                    <input
-                      id="auth-forgot-email"
-                      type="email"
-                      required
-                      value={authEmail}
-                      onChange={(e) => setAuthEmail(e.target.value)}
-                      className="w-full bg-brand-bg text-brand-text text-xs px-4 py-3 rounded-lg border border-brand-lightGray focus:border-brand-accent focus:outline-none"
-                      placeholder="e.g. customer@example.com"
-                    />
-                  </div>
-
-                  {feedback && (
-                    <div className={`p-3 rounded-lg flex items-start space-x-2 text-xs ${
-                      feedback.success ? "bg-green-50 text-green-800" : "bg-red-50 text-red-800"
-                    }`}>
-                      <AlertCircle size={14} className="flex-shrink-0 mt-0.5" />
-                      <span>{feedback.message}</span>
-                    </div>
-                  )}
-
-                  <button
-                    type="submit"
-                    className="w-full bg-brand-accent hover:bg-brand-primary text-white text-xs py-3.5 rounded-full font-semibold uppercase tracking-widest transition-all"
-                  >
-                    Request Reset Link
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => { setAuthMode("login"); setFeedback(null); }}
-                    className="w-full border border-brand-lightGray text-brand-text text-xs py-3.5 rounded-full font-semibold uppercase tracking-widest text-center"
-                  >
-                    Back to Login
                   </button>
                 </form>
               )}

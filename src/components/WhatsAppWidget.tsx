@@ -1,8 +1,9 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { X, Send } from "lucide-react";
+import { X, Send, Heart } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useApp } from "@/context/AppContext";
 
 const WhatsAppIcon = ({ className = "w-6 h-6" }: { className?: string }) => (
   <svg
@@ -16,12 +17,17 @@ const WhatsAppIcon = ({ className = "w-6 h-6" }: { className?: string }) => (
 );
 
 export default function WhatsAppWidget() {
+  const { wishlist } = useApp();
   const [isOpen, setIsOpen] = useState(false);
   const [showTooltip, setShowTooltip] = useState(false);
   const [hasNotification, setHasNotification] = useState(false);
   const [message, setMessage] = useState("");
 
   const phoneNumber = "917021366239";
+
+  const openWishlist = () => {
+    window.dispatchEvent(new CustomEvent("open-wishlist"));
+  };
 
   useEffect(() => {
     // Show tooltip and notification badge after 4 seconds
@@ -174,6 +180,24 @@ export default function WhatsAppWidget() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Floating Wishlist Toggle Button (Mobile Only) */}
+      {!isOpen && (
+        <motion.button
+          onClick={openWishlist}
+          whileHover={{ scale: 1.08 }}
+          whileTap={{ scale: 0.95 }}
+          className="md:hidden relative p-4 rounded-full shadow-2xl flex items-center justify-center bg-white text-brand-accent border border-brand-primary/10 mb-4 z-50 hover:bg-neutral-50 transition-all duration-300"
+          aria-label="Open wishlist"
+        >
+          <Heart className="w-6 h-6" />
+          {wishlist.length > 0 && (
+            <span className="absolute -top-1 -right-1 bg-brand-accent text-white text-[9px] w-5 h-5 rounded-full flex items-center justify-center font-bold border-2 border-white">
+              {wishlist.length}
+            </span>
+          )}
+        </motion.button>
+      )}
 
       {/* Floating Toggle Button */}
       <motion.button

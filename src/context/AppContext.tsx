@@ -212,9 +212,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           }
         }
 
-        // Fetch products (public catalog)
-        const resProducts = await fetch("/api/products");
-        if (resProducts.ok) {
+        // Fire products fetch and session verification concurrently.
+        // Previously these were awaited sequentially, costing an extra
+        // full network round-trip before the session check could even start.
+        const fetchesInFlight: Promise<any>[] = [fetch("/api/products")];
+        if (storedSession) {
+          fetchesInFlight.push(
+            authenticatedFetch(`/api/users/${storedSession.id}`)
+          );
+        }
+
+        const [resProducts, resProfile] = await Promise.all(fetchesInFlight);
+
+        // Handle products response
+        if (resProducts?.ok) {
           const data = await resProducts.json();
           if (Array.isArray(data)) {
             setProducts(data);
@@ -225,9 +236,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           setSession(storedSession);
           setWishlist(storedSession.wishlist || []);
 
-          // Verify session is still valid by fetching profile
-          const resProfile = await authenticatedFetch(`/api/users/${storedSession.id}`);
-          if (resProfile.ok) {
+          if (resProfile?.ok) {
             const latestUser = await resProfile.json();
             if (latestUser) {
               const updatedSession = { ...storedSession, ...latestUser };
@@ -236,26 +245,31 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               saveToLocalStorage("sanaya_session", updatedSession);
             }
 
-            // Session is valid — fetch orders
-            const resOrders = await authenticatedFetch("/api/orders");
-            if (resOrders.ok) {
+            // Session is valid — fetch orders and (if admin) user registry
+            // concurrently rather than one after the other.
+            const secondaryFetches: Promise<Response>[] = [
+              authenticatedFetch("/api/orders"),
+            ];
+            if (storedSession.role === "admin") {
+              secondaryFetches.push(authenticatedFetch("/api/users"));
+            }
+
+            const [resOrders, resUsers] = await Promise.all(secondaryFetches);
+
+            if (resOrders?.ok) {
               const data = await resOrders.json();
               if (Array.isArray(data)) {
                 setOrders(data);
               }
             }
 
-            // Fetch user registry only for administrators
-            if (storedSession.role === "admin") {
-              const resUsers = await authenticatedFetch("/api/users");
-              if (resUsers.ok) {
-                const data = await resUsers.json();
-                if (Array.isArray(data)) {
-                  setUsers(data);
-                }
+            if (resUsers?.ok) {
+              const data = await resUsers.json();
+              if (Array.isArray(data)) {
+                setUsers(data);
               }
             }
-          } else if (resProfile.status === 401 || resProfile.status === 403) {
+          } else if (resProfile?.status === 401 || resProfile?.status === 403) {
             // Server rejected the session — cookies expired or missing.
             // Clear stale localStorage session so user is prompted to log in again.
             console.warn("Session expired or invalid. Clearing local session.");
@@ -303,6 +317,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
     }
   }, [authenticatedFetch]);
+
 
   // Save changes to localStorage helper
   const saveToLocalStorage = (key: string, value: any) => {

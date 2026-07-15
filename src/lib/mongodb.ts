@@ -73,8 +73,12 @@ export async function dbConnect() {
     cached.promise = mongoose
       .connect(MONGODB_URI, {
         bufferCommands: false,
-        serverSelectionTimeoutMS: 10000,
-        connectTimeoutMS: 10000,
+        // Reduced from 10s → 5s: fail fast on cold-start connection issues
+        // rather than stalling the page for up to 10 seconds.
+        serverSelectionTimeoutMS: 5000,
+        connectTimeoutMS: 5000,
+        // Cap how long an individual query can run before timing out.
+        socketTimeoutMS: 45000,
       })
       .then((mongooseInstance) => {
         console.log("✅ Connected to MongoDB Atlas");

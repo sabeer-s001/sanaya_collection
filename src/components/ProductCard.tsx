@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useApp, Product } from "@/context/AppContext";
 import { Heart, ShoppingBag, Eye, Star, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -17,8 +18,8 @@ function ProductCard({ product, badge }: ProductCardProps) {
   const [isQuickViewOpen, setIsQuickViewOpen] = useState(false);
   
   // Selected options for Quick View
-  const [selectedSize, setSelectedSize] = useState(product.sizes[0] || "");
-  const [selectedColor, setSelectedColor] = useState(product.colors[0] || "");
+  const [selectedSize, setSelectedSize] = useState(product?.sizes?.[0] || "");
+  const [selectedColor, setSelectedColor] = useState(product?.colors?.[0] || "");
   const [quantity, setQuantity] = useState(1);
   const [isAdded, setIsAdded] = useState(false);
 
@@ -85,18 +86,22 @@ function ProductCard({ product, badge }: ProductCardProps) {
           )}
 
           {/* Image Swap with Smooth Zoom & Slow Transition */}
-          <img
+          <Image
             src={product.images[0]}
             alt={product.name}
-            className={`w-full h-full object-cover object-center transition-all duration-[1200ms] ease-out ${
+            fill
+            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 25vw, 200px"
+            className={`object-cover object-center transition-all duration-[1200ms] ease-out ${
               isHovered && product.images[1] ? "opacity-0 scale-105" : "opacity-100 scale-100"
             }`}
           />
           {product.images[1] && (
-            <img
+            <Image
               src={product.images[1]}
               alt={`${product.name} alternate view`}
-              className={`absolute inset-0 w-full h-full object-cover object-center transition-all duration-[1200ms] ease-out ${
+              fill
+              sizes="(max-width: 640px) 50vw, (max-width: 1024px) 25vw, 200px"
+              className={`absolute inset-0 object-cover object-center transition-all duration-[1200ms] ease-out ${
                 isHovered ? "opacity-100 scale-105" : "opacity-0 scale-100"
               }`}
             />
@@ -212,17 +217,25 @@ function ProductCard({ product, badge }: ProductCardProps) {
               {/* Gallery column */}
               <div className="w-full md:w-1/2 bg-neutral-50/50 relative flex flex-col justify-center items-center p-6 sm:p-8 border-r border-neutral-100/60">
                 <div className="aspect-[3/4] w-full max-w-[290px] rounded-[2px] overflow-hidden relative shadow-sm border border-neutral-200/40">
-                  <img
+                  <Image
                     src={product.images[0]}
                     alt={product.name}
-                    className="w-full h-full object-cover"
+                    fill
+                    sizes="290px"
+                    className="object-cover"
                   />
                 </div>
                 {/* Secondary previews */}
                 <div className="flex space-x-2 mt-4">
                   {product.images.map((img, idx) => (
-                    <div key={idx} className="w-10 h-14 border border-neutral-200 rounded-[2px] overflow-hidden bg-white shadow-sm">
-                      <img src={img} alt="preview" className="w-full h-full object-cover" />
+                    <div key={idx} className="w-10 h-14 border border-neutral-200 rounded-[2px] overflow-hidden bg-white shadow-sm relative">
+                      <Image 
+                        src={img} 
+                        alt="preview" 
+                        fill 
+                        sizes="40px"
+                        className="object-cover" 
+                      />
                     </div>
                   ))}
                 </div>
@@ -256,7 +269,7 @@ function ProductCard({ product, badge }: ProductCardProps) {
                       <span className="text-[10px] uppercase tracking-wider text-neutral-500 cursor-pointer hover:underline underline-offset-2">Size Chart</span>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                      {product.sizes.map((size) => (
+                      {(product?.sizes || []).map((size) => (
                         <button
                           key={size}
                           onClick={() => setSelectedSize(size)}
@@ -273,11 +286,11 @@ function ProductCard({ product, badge }: ProductCardProps) {
                   </div>
 
                   {/* Color Selector */}
-                  {product.colors && product.colors.length > 0 && (
+                  {product?.colors && product.colors.length > 0 && (
                     <div className="mt-5">
                       <span className="font-semibold text-neutral-800 uppercase tracking-wider text-[10px] block mb-2.5">Select Color</span>
                       <div className="flex flex-wrap gap-2">
-                        {product.colors.map((color) => (
+                        {(product?.colors || []).map((color) => (
                           <button
                             key={color}
                             onClick={() => setSelectedColor(color)}

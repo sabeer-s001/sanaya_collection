@@ -26,5 +26,20 @@ const ProductSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// Index on the custom `id` string field — this is what page.tsx queries via
+// findOne({ id }). Without this, every product page view does a full collection
+// scan. The `unique:true` in the schema field definition alone does NOT
+// guarantee the index exists on an existing Atlas collection.
+ProductSchema.index({ id: 1 }, { unique: true });
+
+// Index for category lookups (shop/filter pages).
+ProductSchema.index({ category: 1 });
+
+// Compound index for the related products query:
+// ProductModel.find({ category, id: { $ne: currentId } })
+// MongoDB can satisfy this with a single index scan instead of scanning all
+// products in the category then filtering by id.
+ProductSchema.index({ category: 1, id: 1 });
+
 export const ProductModel =
   mongoose.models.Product || mongoose.model("Product", ProductSchema);

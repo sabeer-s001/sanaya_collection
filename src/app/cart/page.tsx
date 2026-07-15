@@ -282,11 +282,7 @@ export default function CartPage() {
                 <div className="pt-4 space-y-2">
                   <button
                     onClick={() => {
-                      if (session) {
-                        router.push("/checkout");
-                      } else {
-                        router.push("/dashboard?redirect=/checkout&info=login_required");
-                      }
+                      router.push("/checkout");
                     }}
                     className="w-full bg-brand-accent hover:bg-brand-primary text-white text-xs py-3.5 rounded-full font-semibold uppercase tracking-widest text-center transition-all flex items-center justify-center shadow-lg shadow-brand-accent/15"
                   >

@@ -30,12 +30,7 @@ export default function CheckoutPage() {
     clearCart
   } = useApp();
 
-  // Redirect if not logged in
-  useEffect(() => {
-    if (!session) {
-      router.push("/dashboard?redirect=/checkout&info=login_required");
-    }
-  }, [session]);
+
 
   // Redirect if cart is empty
   useEffect(() => {

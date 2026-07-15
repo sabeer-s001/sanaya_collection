@@ -64,6 +64,13 @@ export default function Navbar() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  // Listen for open-wishlist custom event from WhatsAppWidget mobile button
+  useEffect(() => {
+    const handleOpenWishlist = () => setIsWishlistOpen(true);
+    window.addEventListener("open-wishlist", handleOpenWishlist);
+    return () => window.removeEventListener("open-wishlist", handleOpenWishlist);
+  }, []);
+
   const iconColorClass = isTransparentPage && !isScrolled
     ? "text-white hover:text-white/80"
     : "text-brand-text hover:text-brand-primary";
@@ -211,7 +218,7 @@ export default function Navbar() {
               </button>
 
               {/* User Account */}
-              {session ? (
+              {session && (
                 <div className="relative group hidden md:block">
                   <Link
                     href="/dashboard"
@@ -226,39 +233,31 @@ export default function Navbar() {
                     {session.role === "admin" && (
                       <Link
                         href="/admin"
-                        className="flex items-center px-4 py-2 text-xs text-brand-text hover:bg-brand-bg hover:text-brand-accent"
+                        className="flex items-center px-4 py-2 text-xs text-brand-text hover:bg-zinc-50 hover:text-brand-accent"
                       >
                         <Settings size={14} className="mr-2" /> Admin Panel
                       </Link>
                     )}
                     <Link
                       href="/dashboard"
-                      className="flex items-center px-4 py-2 text-xs text-brand-text hover:bg-brand-bg hover:text-brand-accent"
+                      className="flex items-center px-4 py-2 text-xs text-brand-text hover:bg-zinc-50 hover:text-brand-accent"
                     >
                       <User size={14} className="mr-2" /> My Profile
                     </Link>
                     <Link
                       href="/dashboard?tab=orders"
-                      className="flex items-center px-4 py-2 text-xs text-brand-text hover:bg-brand-bg hover:text-brand-accent"
+                      className="flex items-center px-4 py-2 text-xs text-brand-text hover:bg-zinc-50 hover:text-brand-accent"
                     >
                       <History size={14} className="mr-2" /> Order History
                     </Link>
                     <button
                       onClick={logout}
-                      className="w-full flex items-center px-4 py-2 text-xs text-left text-red-600 hover:bg-brand-bg"
+                      className="w-full flex items-center px-4 py-2 text-xs text-left text-red-600 hover:bg-zinc-50"
                     >
                       <LogOut size={14} className="mr-2" /> Log Out
                     </button>
                   </div>
                 </div>
-              ) : (
-                <Link
-                  href="/dashboard"
-                  className={`p-2 ${iconColorClass} transition-colors focus:outline-none hidden md:block`}
-                  aria-label="Login"
-                >
-                  <User size={20} />
-                </Link>
               )}
 
               {/* Wishlist Toggle */}
@@ -794,8 +793,8 @@ export default function Navbar() {
               </div>
 
               {/* Mobile Menu Footer */}
-              <div className="p-6 border-t border-brand-lightGray bg-brand-bg text-center">
-                {session ? (
+              {session && (
+                <div className="p-6 border-t border-brand-lightGray bg-brand-bg text-center">
                   <div>
                     <p className="text-xs font-medium text-brand-darkGray mb-2">Logged in as {session.fullName}</p>
                     <div className="grid grid-cols-2 gap-2">
@@ -817,16 +816,8 @@ export default function Navbar() {
                       </button>
                     </div>
                   </div>
-                ) : (
-                  <Link
-                    href="/dashboard"
-                    onClick={() => setIsMobileMenuOpen(false)}
-                    className="w-full bg-brand-accent text-white text-[11px] py-3 rounded-full font-semibold uppercase tracking-wider block hover:bg-brand-primary"
-                  >
-                    Login / Register
-                  </Link>
-                )}
-              </div>
+                </div>
+              )}
             </motion.div>
           </>
         )}
