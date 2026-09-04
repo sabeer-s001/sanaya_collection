@@ -1,8 +1,5 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Use a separate output dir for production builds so `npm run dev`
-  // (which writes to .next) never corrupts a `npm run build` run.
-  distDir: process.env.NODE_ENV === 'production' ? '.next-build' : '.next',
   transpilePackages: ["framer-motion", "lucide-react"],
   // Removed: `optimizeFonts: false`
   // With 3 Google Fonts (Plus Jakarta Sans, Cormorant Garamond, Outfit), having

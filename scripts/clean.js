@@ -1,7 +1,7 @@
 /**
  * Cross-platform clean script for Next.js build output.
- * Removes both the dev cache (.next) and production build (.next-build)
- * before a fresh production build to prevent webpack artifact conflicts.
+ * Removes build output (.next) and legacy build directory (.next-build)
+ * before a fresh build to prevent webpack artifact conflicts.
  */
 const fs = require("fs");
 const path = require("path");
