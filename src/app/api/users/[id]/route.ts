@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { dbConnect, UserModel, hashPassword } from "@/lib/mongodb";
 import { checkAuthorizedUser, checkAdmin } from "@/lib/auth";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(
   request: Request,
   { params }: { params: { id: string } }
@@ -72,7 +74,7 @@ export async function PUT(
     const updated = await UserModel.findOneAndUpdate(
       { id },
       { $set: updateData },
-      { new: true }
+      { returnDocument: "after" }
     ).lean();
 
     if (!updated) {

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import crypto from "crypto";
 
 import { dbConnect, OrderModel } from "@/lib/mongodb";
+import { createShipmentForOrder } from "@/lib/ithinkLogistics";
 
 export async function POST(request: Request) {
   try {
@@ -30,16 +31,33 @@ export async function POST(request: Request) {
         { new: true }
       );
 
+      let shipmentResult = null;
       if (!updated) {
-        console.warn(`Order with Razorpay Order ID ${razorpay_order_id} not found in database during verification.`);
+        console.warn(`[PAYMENT] Order with Razorpay Order ID ${razorpay_order_id} not found in database during verification.`);
+      } else {
+        console.log(`[PAYMENT] Razorpay payment verified for order: ${updated.id}`);
+        // Synchronously create shipment via iThink Logistics
+        if (!updated.awbNumber) {
+          try {
+            shipmentResult = await createShipmentForOrder(updated.toObject());
+          } catch (err: any) {
+            console.error(`[LOGISTICS] Shipment creation failed for order ${updated.id}:`, err);
+          }
+        }
       }
 
-      return NextResponse.json({ success: true, message: "Payment verified successfully" });
+      return NextResponse.json({
+        success: true,
+        message: "Payment verified successfully",
+        awbNumber: shipmentResult?.awbNumber || updated?.awbNumber || null,
+        courierName: shipmentResult?.courierName || updated?.courierName || null
+      });
     } else {
+      console.warn(`[PAYMENT] Signature mismatch for Razorpay order ID ${razorpay_order_id}`);
       return NextResponse.json({ success: false, message: "Payment verification failed" }, { status: 400 });
     }
   } catch (error: any) {
-    console.error("Razorpay verification error:", error);
+    console.error("[PAYMENT] Razorpay verification error:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

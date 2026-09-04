@@ -3,6 +3,8 @@ import { dbConnect, ProductModel } from "@/lib/mongodb";
 import { Product } from "@/context/AppContext";
 import { checkAdmin } from "@/lib/auth";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(request: Request) {
   try {
     await dbConnect();
@@ -19,19 +21,20 @@ export async function GET(request: Request) {
       query.id = { $ne: exclude };
     }
 
-    let mongooseQuery = ProductModel.find(query).lean();
-
-    if (category) {
-      // Optimize payload by selecting only fields needed for product cards and quick view
-      mongooseQuery = mongooseQuery.select("id name category originalPrice salePrice discount images inStock rating sizes colors fabric description");
-    }
+    // Always project only the card-level fields. Heavy text fields (careInstructions,
+    // returnPolicy, shippingInfo, description) are only needed on the product detail page
+    // which fetches the document directly from the server via the DB — not this API.
+    const cardFields = "id name category originalPrice salePrice discount images inStock rating reviewCount isBestSeller isFastSelling isSale sizes colors fabric description shippingFee";
+    let mongooseQuery = ProductModel.find(query).lean().select(cardFields);
 
     if (limitVal) {
       const parsedLimit = parseInt(limitVal, 10);
       if (!isNaN(parsedLimit)) {
         mongooseQuery = mongooseQuery.limit(parsedLimit);
       }
-    } else if (!category) {
+    }
+
+    if (!category) {
       // Maintain default sort only when not querying specific category (e.g. for main list)
       mongooseQuery = mongooseQuery.sort({ createdAt: -1 });
     }
@@ -44,12 +47,7 @@ export async function GET(request: Request) {
     // The main product list (no category filter) is left uncached so admin
     // changes are immediately visible across the site.
     const response = NextResponse.json(products);
-    if (category) {
-      response.headers.set(
-        "Cache-Control",
-        "public, s-maxage=60, stale-while-revalidate=300"
-      );
-    }
+    response.headers.set("Cache-Control", "no-store, no-cache, must-revalidate");
     return response;
 
   } catch (error: any) {

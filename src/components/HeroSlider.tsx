@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import DfHeroDesk from "../../public/images/DfHeroDesk.png";
 import DfHeorMobil from "../../public/images/DfHeorMobil.png";
@@ -11,15 +12,18 @@ interface Slide {
   _id?: string;
   desktopImage: string;
   mobileImage: string;
+  link?: string;
 }
 
 const DEFAULT_SLIDE: Slide = {
   id: 0,
   desktopImage: DfHeroDesk.src,
   mobileImage: DfHeorMobil.src,
+  link: "/shop",
 };
 
 export default function HeroSlider() {
+  const router = useRouter();
   const { heroImages } = useApp();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [direction, setDirection] = useState(0);
@@ -53,6 +57,12 @@ export default function HeroSlider() {
 
     return () => clearInterval(timer);
   }, [nextSlide, activeSlides.length]);
+
+  const handleSlideClick = (targetLink?: string) => {
+    if (targetLink && targetLink.trim() !== "") {
+      router.push(targetLink.trim());
+    }
+  };
 
   const slideVariants = {
     enter: (dir: number) => ({
@@ -89,19 +99,23 @@ export default function HeroSlider() {
     }),
   };
 
+  const currentSlide = activeSlides[currentIndex];
+  const slideLink = currentSlide?.link;
+
   return (
     <div className="relative w-full h-[70vh] md:h-screen bg-[#AF7F8F] overflow-hidden">
       {/* Slider */}
       <div className="relative w-full h-full">
         <AnimatePresence initial={false} custom={direction}>
           <motion.div
-            key={activeSlides[currentIndex]?._id || activeSlides[currentIndex]?.id || currentIndex}
+            key={currentSlide?._id || currentSlide?.id || currentIndex}
             custom={direction}
             variants={slideVariants}
             initial="enter"
             animate="center"
             exit="exit"
-            className="absolute inset-0 w-full h-full"
+            onClick={() => handleSlideClick(slideLink)}
+            className={`absolute inset-0 w-full h-full ${slideLink ? "cursor-pointer" : ""}`}
           >
             {/* Navbar Overlay */}
             <div className="absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-black/50 to-transparent z-10 pointer-events-none" />
@@ -110,11 +124,11 @@ export default function HeroSlider() {
             <picture>
               <source
                 media="(min-width: 768px)"
-                srcSet={activeSlides[currentIndex]?.desktopImage}
+                srcSet={currentSlide?.desktopImage}
               />
 
               <img
-                src={activeSlides[currentIndex]?.mobileImage}
+                src={currentSlide?.mobileImage}
                 alt={`Hero Slide ${currentIndex + 1}`}
                 className="w-full h-full object-cover object-center"
               />
@@ -128,7 +142,8 @@ export default function HeroSlider() {
         {activeSlides.map((slide: Slide, idx: number) => (
           <button
             key={slide._id || slide.id || idx}
-            onClick={() => {
+            onClick={(e) => {
+              e.stopPropagation();
               setDirection(idx > currentIndex ? 1 : -1);
               setCurrentIndex(idx);
             }}

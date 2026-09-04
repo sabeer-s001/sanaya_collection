@@ -5,6 +5,11 @@ import ProductDetailClient from "./ProductDetailClient";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 
+// ISR: Regenerate each product page in the background at most once per hour.
+// This means after a product is updated in admin, the new data shows within 1 hour
+// without requiring a full redeploy.
+export const revalidate = 3600;
+
 interface Props {
   params: Promise<{
     id: string;
@@ -17,9 +22,28 @@ interface Props {
  */
 const getProduct = cache(async (id: string) => {
   await dbConnect();
-  // Select fields and execute query using lean() for maximum performance
-  return ProductModel.findOne({ id }).lean();
+  // Select only the fields needed by ProductDetailClient to minimize payload
+  return ProductModel.findOne({ id })
+    .select("id name category originalPrice salePrice discount images inStock rating reviewCount sizes colors fabric description careInstructions shippingInfo returnPolicy isBestSeller isFastSelling isSale shippingFee")
+    .lean();
 });
+
+/**
+ * generateStaticParams tells Next.js to pre-build every product detail page at
+ * build time as static HTML. This eliminates the cold server-side DB query on
+ * every visit — pages are served instantly from CDN/cache instead.
+ */
+export async function generateStaticParams() {
+  try {
+    await dbConnect();
+    // Only fetch the `id` field — we just need the list of IDs for param generation
+    const products = await ProductModel.find({}).select("id").lean();
+    return products.map((p) => ({ id: p.id as string }));
+  } catch (error) {
+    console.error("generateStaticParams: failed to fetch product IDs", error);
+    return [];
+  }
+}
 
 /**
  * Server-side dynamic SEO metadata generation.

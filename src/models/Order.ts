@@ -33,6 +33,13 @@ const OrderSchema = new mongoose.Schema(
   {
     id: { type: String, required: true, unique: true },
     userId: { type: String, default: "" }, // Linked user ID for secure routing
+    customerId: { type: String, default: "" }, // Secure HTTP-only cookie client ID
+    phone: { type: String, default: "" }, // Top-level phone number for verification flexibility
+    phoneVerificationStatus: {
+      type: String,
+      enum: ["unverified", "verified"],
+      default: "unverified",
+    },
     date: { type: Date, required: true },
     items: { type: [CartItemSchema], required: true },
     shippingAddress: { type: AddressSchema, required: true },
@@ -44,19 +51,31 @@ const OrderSchema = new mongoose.Schema(
     totalAmount: { type: Number, required: true },
     status: {
       type: String,
-      enum: ["Pending", "Processing", "Shipped", "Delivered"],
+      enum: ["Pending", "Processing", "Shipped", "Delivered", "Cancelled"],
       default: "Pending",
     },
-    trackingNumber: { type: String, required: true },
+    trackingNumber: { type: String, default: "" },
     razorpayOrderId: { type: String },
     razorpayPaymentId: { type: String },
     razorpaySignature: { type: String },
+
+    // ─── iThink Logistics Fields ───
+    logisticsProvider: { type: String, default: "iThink Logistics" },
+    shipmentId: { type: String, default: "" },
+    awbNumber: { type: String, default: "" },
+    courierName: { type: String, default: "" },
+    shipmentStatus: { type: String, default: "" },
+    shipmentCreatedAt: { type: Date },
+    trackingUpdatedAt: { type: Date },
+    logisticsError: { type: String, default: "" },
   },
   { timestamps: true }
 );
 
-// Index orders by userId for fast profile order fetches
+// Index orders for fast lookups
 OrderSchema.index({ userId: 1 });
+OrderSchema.index({ customerId: 1 });
+OrderSchema.index({ phone: 1 });
 
 OrderSchema.set("toJSON", {
   transform: (doc, ret) => {

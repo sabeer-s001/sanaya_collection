@@ -11,7 +11,8 @@ import {
   Lock,
   Store,
   ExternalLink,
-  Image as ImageIcon
+  Image as ImageIcon,
+  LogOut
 } from "lucide-react";
 
 export default function AdminLayout({
@@ -21,7 +22,12 @@ export default function AdminLayout({
 }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { session } = useApp();
+  const { session, logout } = useApp();
+
+  const handleLogout = () => {
+    logout();
+    router.push("/admin/login");
+  };
 
   // Route protection
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
@@ -38,6 +44,11 @@ export default function AdminLayout({
     }
   }, [session]);
 
+  // Bypass route protection for the admin login page
+  if (pathname === "/admin/login") {
+    return <>{children}</>;
+  }
+
   // Access Denied Page (Premium Modern Style)
   if (isAdmin === false) {
     return (
@@ -53,14 +64,14 @@ export default function AdminLayout({
             <p className="text-xs font-semibold text-rose-600 uppercase tracking-widest">Admin Credentials Required</p>
           </div>
           <p className="text-sm text-zinc-600 leading-relaxed">
-            Your current account does not have store administrator privileges. Please switch to an admin account or return to the main storefront.
+            Your current account does not have store administrator privileges. Please sign in with an admin account or return to the main storefront.
           </p>
           <div className="flex flex-col space-y-2 pt-2">
             <button
-              onClick={() => router.push("/dashboard")}
+              onClick={() => router.push("/admin/login")}
               className="w-full bg-zinc-950 hover:bg-zinc-800 text-white text-xs py-3 px-4 rounded-xl font-bold uppercase tracking-wider transition-colors shadow-sm"
             >
-              Sign In to Account
+              Sign In to Admin Account
             </button>
             <button
               onClick={() => router.push("/")}
@@ -90,7 +101,7 @@ export default function AdminLayout({
     { href: "/admin/products", label: "Product Inventory", icon: Package },
     { href: "/admin/orders", label: "Client Orders", icon: ShoppingBag },
     { href: "/admin/customers", label: "User Registry", icon: Users },
-    { href: "/admin/hero", label: "Hero Slider Images", icon: ImageIcon }
+    { href: "/admin/hero", label: "Hero Slider Images", icon: ImageIcon },
   ];
 
   return (
@@ -115,6 +126,14 @@ export default function AdminLayout({
             <Store size={14} className="text-teal-600" />
             <span>Storefront</span>
             <ExternalLink size={12} className="text-zinc-400" />
+          </button>
+          <button 
+            onClick={handleLogout}
+            className="flex items-center space-x-1.5 bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 px-3.5 py-2 rounded-xl font-semibold transition-all duration-300 shadow-xs cursor-pointer"
+            title="Log Out of Admin"
+          >
+            <LogOut size={14} />
+            <span>Log Out</span>
           </button>
         </div>
       </header>
@@ -151,14 +170,23 @@ export default function AdminLayout({
 
             <div className="border-t border-zinc-100 pt-6">
               <p className="text-[9px] tracking-[0.2em] text-zinc-400 uppercase font-bold mb-3">Operator Details</p>
-              <div className="bg-zinc-50 rounded-2xl p-4 border border-zinc-200/60 space-y-2">
+              <div className="bg-zinc-50 rounded-2xl p-4 border border-zinc-200/60 space-y-3">
                 <div>
-                  <p className="text-xs font-bold text-zinc-800">{session?.fullName || "Admin"}</p>
-                  <p className="text-[10px] text-zinc-400 truncate mt-0.5">{session?.email || "admin@sanaya.com"}</p>
+                  <p className="text-xs font-bold text-zinc-800">{session?.fullName || "Administrator"}</p>
+                  <p className="text-[10px] text-zinc-400 truncate mt-0.5">{session?.email || "System Operator"}</p>
                 </div>
-                <span className="inline-flex bg-teal-50 text-teal-700 border border-teal-200/50 text-[9px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider">
-                  {session?.role || "Admin"}
-                </span>
+                <div className="flex items-center justify-between pt-1 border-t border-zinc-200/60">
+                  <span className="inline-flex bg-teal-50 text-teal-700 border border-teal-200/50 text-[9px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+                    {session?.role || "Admin"}
+                  </span>
+                  <button
+                    onClick={handleLogout}
+                    className="text-[10px] text-rose-600 font-bold hover:text-rose-700 flex items-center space-x-1 cursor-pointer transition-colors"
+                  >
+                    <LogOut size={12} />
+                    <span>Log Out</span>
+                  </button>
+                </div>
               </div>
             </div>
           </div>

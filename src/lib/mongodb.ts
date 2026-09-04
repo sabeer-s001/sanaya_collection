@@ -5,48 +5,12 @@ export { ProductModel } from "@/models/Product";
 export { OrderModel } from "@/models/Order";
 export { UserModel, hashPassword, verifyPassword } from "@/models/User";
 export { HeroImageModel } from "@/models/HeroImage";
+export { SettingsModel } from "@/models/Settings";
 
 // ----------------------------------------------------
 // SEED DATA REFERENCE
 // ----------------------------------------------------
-export const DEFAULT_USERS = [
-  {
-    id: "admin",
-    fullName: "Sanaya Admin",
-    email: "admin@sanaya.com",
-    password: "adminpassword",
-    role: "admin",
-    addresses: [],
-    wishlist: [],
-  },
-  {
-    id: "admin_sabeer",
-    fullName: "Sabeer Admin",
-    email: "sabeersalotgi@gmail.com",
-    password: "adminpassword",
-    role: "admin",
-    addresses: [],
-    wishlist: [],
-  },
-  {
-    id: "customer1",
-    fullName: "Aanya Verma",
-    email: "aanya@gmail.com",
-    password: "userpassword",
-    role: "customer",
-    addresses: [
-      {
-        fullName: "Aanya Verma",
-        addressLine: "Flat 402, Lotus Residency, MG Road",
-        city: "Mumbai",
-        state: "Maharashtra",
-        postalCode: "400001",
-        phone: "7021366239",
-      },
-    ],
-    wishlist: [],
-  },
-];
+export const DEFAULT_USERS: any[] = [];
 
 // -----------------
 // CONNECTION HELPER

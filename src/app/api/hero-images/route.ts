@@ -36,6 +36,7 @@ export async function POST(request: Request) {
     const newHeroImage = {
       desktopImage: body.desktopImage,
       mobileImage: body.mobileImage,
+      link: body.link || "",
       order: body.order !== undefined ? body.order : nextOrder,
     };
 

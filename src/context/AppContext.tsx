@@ -23,6 +23,7 @@ export interface Product {
   careInstructions: string;
   shippingInfo: string;
   returnPolicy: string;
+  shippingFee?: number; // Per-product shipping override (0 = free, undefined = use store default)
 }
 
 export interface CartItem {
@@ -44,6 +45,9 @@ export interface Address {
 export interface Order {
   id: string;
   userId?: string;
+  customerId?: string;
+  phone?: string;
+  phoneVerificationStatus?: "unverified" | "verified";
   date: string;
   items: CartItem[];
   shippingAddress: Address;
@@ -53,12 +57,18 @@ export interface Order {
   tax: number;
   discountAmount: number;
   totalAmount: number;
-  status: "Pending" | "Processing" | "Shipped" | "Delivered";
+  status: "Pending" | "Processing" | "Shipped" | "Delivered" | "Cancelled";
   trackingNumber: string;
   razorpayOrderId?: string;
   razorpayPaymentId?: string;
   razorpaySignature?: string;
+  // iThink Logistics
+  awbNumber?: string;
+  courierName?: string;
+  shipmentStatus?: string;
+  logisticsError?: string;
 }
+
 
 export interface User {
   id: string;
@@ -75,6 +85,7 @@ export interface HeroImage {
   _id?: string;
   desktopImage: string;
   mobileImage: string;
+  link?: string;
   order: number;
 }
 
@@ -93,17 +104,19 @@ interface AppContextType {
   removeFromCart: (productId: string, size: string, color: string) => void;
   updateCartQty: (productId: string, size: string, color: string, qty: number) => void;
   clearCart: () => void;
-  applyCoupon: (code: string) => { success: boolean; message: string };
-  removeCoupon: () => void;
-
+  
   // Wishlist Actions
   toggleWishlist: (productId: string) => Promise<void>;
-
+  
   // Order Actions
   placeOrder: (shippingAddress: Address, paymentMethod: string, paymentStatus?: string) => Promise<Order | null>;
   updateOrderStatus: (orderId: string, status: Order["status"]) => Promise<void>;
 
-  // User Actions
+  // Coupon Actions
+  applyCoupon: (code: string) => { success: boolean; message: string };
+  removeCoupon: () => void;
+  
+  // Auth Actions
   signUp: (fullName: string, email: string, password: string, role?: string) => Promise<{ success: boolean; message: string }>;
   login: (email: string, password: string) => Promise<{ success: boolean; message: string; code?: string | null; user?: User }>;
   logout: () => void;
@@ -119,58 +132,19 @@ interface AppContextType {
 
   // Hero Image Slider Actions
   heroImages: HeroImage[];
-  addHeroImage: (desktopImage: string, mobileImage: string) => Promise<void>;
+  addHeroImage: (desktopImage: string, mobileImage: string, link?: string) => Promise<void>;
   editHeroImage: (id: string, updatedData: Partial<HeroImage>) => Promise<void>;
   deleteHeroImage: (id: string) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-const DEFAULT_USERS: User[] = [
-  {
-    id: "admin",
-    fullName: "Sanaya Admin",
-    email: "admin@sanaya.com",
-    password: "adminpassword",
-    role: "admin",
-    addresses: [],
-    wishlist: []
-  },
-  {
-    id: "admin_sabeer",
-    fullName: "Sabeer Admin",
-    email: "sabeersalotgi@gmail.com",
-    password: "adminpassword",
-    role: "admin",
-    addresses: [],
-    wishlist: []
-  },
-  {
-    id: "customer1",
-    fullName: "Aanya Verma",
-    email: "aanya@gmail.com",
-    password: "userpassword",
-    role: "customer",
-    addresses: [
-      {
-        fullName: "Aanya Verma",
-        addressLine: "Flat 402, Lotus Residency, MG Road",
-        city: "Mumbai",
-        state: "Maharashtra",
-        postalCode: "400001",
-        phone: "7021366239"
-      }
-    ],
-    wishlist: []
-  }
-];
-
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [products, setProducts] = useState<Product[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [wishlist, setWishlist] = useState<string[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
-  const [users, setUsers] = useState<User[]>(DEFAULT_USERS);
+  const [users, setUsers] = useState<User[]>([]);
   const [session, setSession] = useState<User | null>(null);
   const [heroImages, setHeroImages] = useState<HeroImage[]>([]);
   const [coupon, setCoupon] = useState<string | null>(null);
@@ -270,15 +244,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               }
             }
           } else if (resProfile?.status === 401 || resProfile?.status === 403) {
-            // Server rejected the session — cookies expired or missing.
-            // Clear stale localStorage session so user is prompted to log in again.
-            console.warn("Session expired or invalid. Clearing local session.");
+            // Server explicitly rejected the session token — log the user out.
+            console.warn("Session rejected by server. Clearing local session.");
             setSession(null);
             setWishlist([]);
             if (typeof window !== "undefined") {
               localStorage.removeItem("sanaya_session");
               localStorage.removeItem("sanaya_wishlist");
             }
+          } else {
+            // For 404 (user not yet seeded to DB) or network errors,
+            // keep the local session alive so the user stays logged in.
+            // Their data just won't be refreshed from the server this time.
+            console.warn(`Profile fetch returned status ${resProfile?.status}. Keeping local session.`);
           }
         }
       } catch (error) {
@@ -448,37 +426,48 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // Subtotal
     const subtotal = cart.reduce((acc, item) => acc + item.product.salePrice * item.quantity, 0);
     const discountAmount = Math.round(subtotal * discountRate);
-    const gstRate = 0.18; // 18% GST
-    const tax = Math.round((subtotal - discountAmount) * gstRate);
-    const shippingCost = subtotal - discountAmount > 2000 ? 0 : 150;
-    const totalAmount = subtotal - discountAmount + tax + shippingCost;
+    const taxableAmount = subtotal - discountAmount;
+    const tax = 0; // GST removed
+    const shippingCost = taxableAmount >= 1999 || taxableAmount === 0 ? 0 : 150; // Server will recalculate with real settings
+    const isCOD = paymentMethod === "Cash On Delivery (COD)";
+    const codFee = 0;
+    const totalAmount = taxableAmount + shippingCost + codFee;
 
     const newOrder: Order = {
-      id: `ORD-${Math.floor(1000 + Math.random() * 9000)}`,
+      id: `ORD-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`,
       userId: session?.id || "guest", // Link order to session user ID for secure dashboard filters
       date: new Date().toISOString().split("T")[0],
       items: [...cart],
       shippingAddress,
       paymentMethod,
-      paymentStatus: paymentStatus || (paymentMethod === "Cash On Delivery (COD)" ? "Pending" : "Paid"),
+      paymentStatus: paymentStatus || (isCOD ? "Pending" : "Paid"),
       shippingCost,
       tax,
       discountAmount,
       totalAmount,
       status: "Pending",
-      trackingNumber: `TRK-${Math.floor(10000000 + Math.random() * 90000000)}`,
+      trackingNumber: "", // Empty initially, filled with iThink AWB
     };
 
     try {
       const res = await authenticatedFetch("/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newOrder)
+        body: JSON.stringify({
+          ...newOrder,
+          coupon: coupon || undefined
+        })
       });
       if (res.ok) {
         const savedOrder = await res.json();
         setOrders((prevOrders) => [savedOrder, ...prevOrders]);
-        if (newOrder.paymentStatus !== "Pending" || paymentMethod === "Cash On Delivery (COD)") {
+        if (typeof window !== "undefined" && shippingAddress.phone) {
+          const cleanPhone = shippingAddress.phone.replace(/\D/g, "");
+          if (cleanPhone) {
+            localStorage.setItem("sanaya_customer_phone", cleanPhone);
+          }
+        }
+        if (newOrder.paymentStatus !== "Pending" || isCOD) {
           clearCart();
         }
         return savedOrder;
@@ -677,11 +666,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const forgotPassword = async (email: string) => {
-    const exists = users.some((u) => u.email.toLowerCase() === email.toLowerCase());
-    if (exists) {
-      return { success: true, message: "A password reset link has been sent to your registered email address." };
+    try {
+      // Check if email exists by attempting a login with a dummy password.
+      // The API returns 404 if no account exists, or 401/200 if the account exists.
+      const res = await fetch("/api/users/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password: "__check_email_only__" })
+      });
+      const data = await res.json();
+
+      // If 404 → no account found. Otherwise (401 wrong password, or 200) → account exists.
+      if (res.status === 404 || data.code === "USER_NOT_FOUND") {
+        return { success: false, message: "No account found with this email address. Please check the email and try again." };
+      }
+
+      return { success: true, message: "A password reset link has been sent to your registered email address. Please check your inbox." };
+    } catch (error) {
+      return { success: true, message: "If this email is registered, a reset link has been sent to your inbox." };
     }
-    return { success: false, message: "Email address not found. Please try again." };
   };
 
   // Admin Actions
@@ -732,12 +735,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
-  const addHeroImage = async (desktopImage: string, mobileImage: string) => {
+  const addHeroImage = async (desktopImage: string, mobileImage: string, link?: string) => {
     try {
       const res = await authenticatedFetch("/api/hero-images", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ desktopImage, mobileImage }),
+        body: JSON.stringify({ desktopImage, mobileImage, link }),
       });
       if (res.ok) {
         const saved = await res.json();

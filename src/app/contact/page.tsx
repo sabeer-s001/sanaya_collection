@@ -29,7 +29,7 @@ const FAQS = [
   },
   {
     q: "Do you offer Cash on Delivery (COD)?",
-    a: "Yes! COD is available on all orders across India. Simply select 'Cash On Delivery' at checkout. An additional ₹50 COD handling fee may apply."
+    a: "Yes! COD is available on all orders across India. Simply select 'Cash On Delivery' at checkout."
   },
   {
     q: "Can I customise the size of an outfit?",

@@ -464,10 +464,7 @@ export default function AdminOrderDetailPage({ params }: { params: { id: string 
                 <span>Shipping Cost</span>
                 <span className="font-semibold text-zinc-800">₹{order.shippingCost}</span>
               </div>
-              <div className="flex justify-between text-zinc-500">
-                <span>Estimated Tax (18% GST incl.)</span>
-                <span className="font-semibold text-zinc-800">₹{order.tax}</span>
-              </div>
+
               {order.discountAmount > 0 && (
                 <div className="flex justify-between text-rose-600 font-semibold bg-rose-50/50 border border-rose-100 p-2.5 rounded-lg">
                   <span className="flex items-center">

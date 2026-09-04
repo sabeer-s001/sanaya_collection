@@ -12,6 +12,7 @@ interface RazorpayOptions {
     name?: string;
     email?: string;
     contact?: string;
+    method?: "card" | "upi" | "netbanking" | "wallet" | "emi";
   };
   notes?: Record<string, string>;
   theme?: {

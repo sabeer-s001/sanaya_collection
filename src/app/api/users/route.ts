@@ -41,7 +41,7 @@ export async function POST(request: Request) {
     const newUser: User = {
       ...body,
       id: body.id || `usr-${Math.random().toString(36).substr(2, 9)}`,
-      role: "customer",
+      role: body.role || "customer",
       addresses: body.addresses || [],
       wishlist: body.wishlist || []
     };

@@ -11,7 +11,18 @@ import {
   Ruler, 
   X,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Truck,
+  Calendar,
+  MapPin,
+  CheckCircle2,
+  RotateCcw,
+  ShieldCheck,
+  Banknote,
+  Sparkles,
+  Zap,
+  ArrowRight,
+  CreditCard
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -30,6 +41,11 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
   const [isSizeChartOpen, setIsSizeChartOpen] = useState(false);
   const [isAdded, setIsAdded] = useState(false);
   
+  // Pincode & Delivery estimator state
+  const [pincode, setPincode] = useState("");
+  const [pincodeChecked, setPincodeChecked] = useState(false);
+  const [pincodeError, setPincodeError] = useState("");
+
   // Related Products state (Client-side fetched to avoid blocking server-side page load)
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
   const [loadingRelated, setLoadingRelated] = useState(true);
@@ -41,6 +57,9 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
   const [zoomPos, setZoomPos] = useState({ x: 0, y: 0 });
   const [isZoomed, setIsZoomed] = useState(false);
 
+  // Gallery container ref for mobile touch scrolling
+  const galleryRef = React.useRef<HTMLDivElement>(null);
+
   // Set default selections once product loads
   useEffect(() => {
     if (product) {
@@ -50,6 +69,42 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
       setQuantity(1);
     }
   }, [product]);
+
+  // Load saved pincode from localStorage if present
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const savedPincode = localStorage.getItem("sanaya_pincode");
+      if (savedPincode && savedPincode.length === 6) {
+        setPincode(savedPincode);
+        setPincodeChecked(true);
+      }
+    }
+  }, []);
+
+  // Synchronize scroll position when activeImageIdx changes
+  useEffect(() => {
+    if (galleryRef.current) {
+      const container = galleryRef.current;
+      const targetScrollLeft = activeImageIdx * container.clientWidth;
+      if (Math.abs(container.scrollLeft - targetScrollLeft) > 10) {
+        container.scrollTo({
+          left: targetScrollLeft,
+          behavior: "smooth"
+        });
+      }
+    }
+  }, [activeImageIdx]);
+
+  // Handle scroll events on mobile swipe container
+  const handleScroll = () => {
+    if (!galleryRef.current) return;
+    const { scrollLeft, clientWidth } = galleryRef.current;
+    if (clientWidth === 0) return;
+    const newIdx = Math.round(scrollLeft / clientWidth);
+    if (newIdx !== activeImageIdx && newIdx >= 0 && newIdx < product.images.length) {
+      setActiveImageIdx(newIdx);
+    }
+  };
 
   // Client-side fetching of related products
   useEffect(() => {
@@ -95,6 +150,37 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
     setOpenSection(openSection === section ? null : section);
   };
 
+  const handleCheckPincode = (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleanDigits = pincode.replace(/\D/g, "");
+    if (cleanDigits.length === 6) {
+      setPincodeError("");
+      setPincodeChecked(true);
+      if (typeof window !== "undefined") {
+        localStorage.setItem("sanaya_pincode", cleanDigits);
+      }
+    } else {
+      setPincodeError("Please enter a valid 6-digit Indian pincode.");
+      setPincodeChecked(false);
+    }
+  };
+
+  // Dynamic delivery dates calculator based on current date
+  const getEstimatedDeliveryDates = () => {
+    const minDate = new Date();
+    minDate.setDate(minDate.getDate() + 3);
+    const maxDate = new Date();
+    maxDate.setDate(maxDate.getDate() + 5);
+
+    const opts: Intl.DateTimeFormatOptions = { weekday: "short", month: "short", day: "numeric" };
+    return {
+      min: minDate.toLocaleDateString("en-IN", opts),
+      max: maxDate.toLocaleDateString("en-IN", opts),
+    };
+  };
+
+  const deliveryDates = getEstimatedDeliveryDates();
+
   return (
     <div className="w-full">
       {/* Product details grid */}
@@ -103,40 +189,76 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
         {/* Left Column: Interactive Image Gallery */}
         <div className="space-y-4">
           
-          {/* Main view container with mouse zoom */}
+          {/* Main view container with touch-friendly swipe gallery on mobile & click-to-zoom on desktop */}
           <div 
-            className="aspect-[3/4] w-full bg-brand-bg rounded-2xl overflow-hidden relative shadow-sm border border-brand-primary/5 cursor-zoom-in"
-            onMouseMove={handleMouseMove}
-            onMouseEnter={() => setIsZoomed(true)}
-            onMouseLeave={() => setIsZoomed(false)}
+            ref={galleryRef}
+            onScroll={handleScroll}
+            className="aspect-[3/4] w-full bg-brand-bg rounded-2xl overflow-x-auto md:overflow-hidden flex snap-x snap-mandatory scrollbar-none relative shadow-sm border border-brand-primary/5 cursor-pointer md:cursor-zoom-in"
           >
-            <Image
-              src={product.images[activeImageIdx]}
-              alt={product.name}
-              fill
-              priority
-              sizes="(max-width: 768px) 100vw, 50vw"
-              className="object-cover transition-transform duration-100"
-              style={{
-                transformOrigin: `${zoomPos.x}% ${zoomPos.y}%`,
-                transform: isZoomed ? "scale(2.2)" : "scale(1)"
-              }}
-            />
+            {product.images.map((img, idx) => (
+              <div 
+                key={idx}
+                className="w-full h-full flex-shrink-0 snap-start relative"
+                onMouseMove={handleMouseMove}
+                onMouseEnter={() => {
+                  // Only zoom on desktop screen widths to avoid layout shifting on touch devices
+                  if (window.innerWidth >= 768) {
+                    setIsZoomed(true);
+                  }
+                }}
+                onMouseLeave={() => setIsZoomed(false)}
+              >
+                <Image
+                  src={img}
+                  alt={`${product.name} - view ${idx + 1}`}
+                  fill
+                  priority={idx === 0}
+                  sizes="(max-width: 768px) 100vw, 50vw"
+                  className="object-cover transition-transform duration-100 select-none pointer-events-none md:pointer-events-auto"
+                  style={{
+                    transformOrigin: `${zoomPos.x}% ${zoomPos.y}%`,
+                    transform: (isZoomed && activeImageIdx === idx) ? "scale(2.2)" : "scale(1)"
+                  }}
+                />
+              </div>
+            ))}
 
-            {/* Wishlist Button Overlay */}
+            {/* Wishlist Button Overlay - Pinned relative to the main container */}
             <button
-              onClick={() => toggleWishlist(product.id)}
-              className="absolute top-4 right-4 p-3 bg-white/80 hover:bg-white text-brand-text hover:text-brand-accent rounded-full shadow-md backdrop-blur-sm transition-colors duration-300 z-10"
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleWishlist(product.id);
+              }}
+              className="absolute top-4 right-4 p-3 bg-white/80 hover:bg-white text-brand-text hover:text-brand-accent rounded-full shadow-md backdrop-blur-sm transition-colors duration-300 z-20"
               aria-label={isWishlisted ? "Remove from Wishlist" : "Add to Wishlist"}
             >
               <Heart size={20} className={isWishlisted ? "fill-brand-accent text-brand-accent scale-110" : "transition-transform"} />
             </button>
 
-            {/* Sale or Discount Tags */}
+            {/* Sale or Discount Tags - Pinned relative to the main container */}
             {product.discount > 0 && (
-              <span className="absolute top-4 left-4 bg-red-500 text-white text-[10px] font-bold tracking-widest uppercase px-3 py-1 rounded-full shadow-md z-10">
+              <span className="absolute top-4 left-4 bg-red-500 text-white text-[10px] font-bold tracking-widest uppercase px-3 py-1 rounded-full shadow-md z-20">
                 {product.discount}% OFF
               </span>
+            )}
+
+            {/* Mobile Swipe Pagination Indicator Dots */}
+            {product.images.length > 1 && (
+              <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-1.5 z-20 md:hidden bg-black/25 backdrop-blur-[2px] px-3 py-1.5 rounded-full">
+                {product.images.map((_, idx) => (
+                  <button
+                    key={idx}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setActiveImageIdx(idx);
+                    }}
+                    className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${
+                      activeImageIdx === idx ? "bg-white scale-125" : "bg-white/40"
+                    }`}
+                    aria-label={`View slide ${idx + 1}`}
+                  />
+                ))}
+              </div>
             )}
           </div>
 
@@ -223,28 +345,6 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
               </div>
             </div>
 
-            {/* Color Selector */}
-            {product.colors && product.colors.length > 0 && (
-              <div>
-                <span className="text-xs font-semibold text-brand-text block mb-3">SELECT COLOR</span>
-                <div className="flex flex-wrap gap-3">
-                  {product.colors.map((color) => (
-                    <button
-                      key={color}
-                      onClick={() => setSelectedColor(color)}
-                      className={`px-4 py-2 border text-xs font-semibold rounded-lg transition-all ${
-                        selectedColor === color
-                          ? "border-brand-accent bg-brand-accent/5 text-brand-accent shadow-sm"
-                          : "border-brand-lightGray hover:border-brand-accent text-brand-text"
-                      }`}
-                    >
-                      {color}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
             {/* Quantity Selector */}
             <div>
               <span className="text-xs font-semibold text-brand-text block mb-3">QUANTITY</span>
@@ -273,28 +373,55 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
               <button
                 disabled={!product.inStock}
                 onClick={handleAddToCart}
-                className={`flex-1 text-center text-xs tracking-widest uppercase font-semibold py-4 rounded-full transition-colors flex items-center justify-center space-x-2 ${
+                className={`flex-1 text-center text-xs tracking-widest uppercase font-bold py-4 rounded-xl transition-all flex items-center justify-center space-x-2 border border-brand-accent text-brand-accent hover:bg-brand-accent/10 ${
                   !product.inStock
-                    ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                    ? "opacity-50 cursor-not-allowed"
                     : isAdded
-                      ? "bg-green-600 text-white"
-                      : "bg-brand-accent text-white hover:bg-brand-primary shadow-lg shadow-brand-accent/15"
+                      ? "bg-emerald-50 text-emerald-700 border-emerald-300"
+                      : ""
                 }`}
               >
-                <ShoppingBag size={16} />
+                <ShoppingBag size={15} />
                 <span>{isAdded ? "Added to Cart!" : "Add To Cart"}</span>
               </button>
               <button
                 disabled={!product.inStock}
                 onClick={handleBuyNow}
-                className={`flex-1 text-center text-xs tracking-widest uppercase font-semibold py-4 rounded-full transition-colors ${
+                className={`flex-1 text-center text-xs tracking-widest uppercase font-bold py-4 rounded-xl transition-all flex items-center justify-center space-x-2 ${
                   !product.inStock
                     ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                    : "bg-brand-text text-white hover:bg-brand-accent"
+                    : "bg-brand-accent hover:bg-brand-primary text-white shadow-md shadow-brand-accent/20 hover:shadow-lg hover:scale-[1.01] active:scale-[0.99]"
                 }`}
               >
-                Buy It Now
+                <CreditCard size={15} className="text-white/90" />
+                <span>Buy It Now</span>
+                <ArrowRight size={14} className="text-white/80" />
               </button>
+            </div>
+          </div>
+
+          {/* Service Highlights */}
+          <div className="bg-white rounded-2xl border border-brand-primary/10 p-4 shadow-sm">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex items-center space-x-2.5 text-xs text-brand-text">
+                <div className="p-2 bg-brand-bg rounded-lg text-brand-accent flex-shrink-0">
+                  <Banknote size={16} />
+                </div>
+                <div>
+                  <p className="font-bold text-[11px]">Cash On Delivery</p>
+                  <p className="text-[10px] text-brand-darkGray">Pay at your doorstep</p>
+                </div>
+              </div>
+
+              <div className="flex items-center space-x-2.5 text-xs text-brand-text">
+                <div className="p-2 bg-brand-bg rounded-lg text-brand-accent flex-shrink-0">
+                  <ShieldCheck size={16} />
+                </div>
+                <div>
+                  <p className="font-bold text-[11px]">100% Authentic</p>
+                  <p className="text-[10px] text-brand-darkGray">Handpicked quality</p>
+                </div>
+              </div>
             </div>
           </div>
 

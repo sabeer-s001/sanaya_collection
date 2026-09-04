@@ -4,6 +4,7 @@ const HeroImageSchema = new mongoose.Schema(
   {
     desktopImage: { type: String, required: true },
     mobileImage: { type: String, required: true },
+    link: { type: String, default: "" },
     order: { type: Number, default: 0 },
   },
   { timestamps: true }

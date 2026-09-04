@@ -39,7 +39,8 @@ export default function AdminProductsPage() {
     description: "Elegant and classy luxury suit crafted with high-end weaves for festive and premium daily ensembles.",
     careInstructions: "Dry Clean recommended to preserve quality.",
     shippingInfo: "Shipped within 2-3 business days.",
-    returnPolicy: "Hassle-free 7-day returns."
+    returnPolicy: "Hassle-free 7-day returns.",
+    shippingFee: 0,
   });
 
   const [isUploading, setIsUploading] = useState(false);
@@ -111,7 +112,11 @@ export default function AdminProductsPage() {
     }
 
     const disc = Math.round(((productForm.originalPrice - productForm.salePrice) / productForm.originalPrice) * 100);
-    const dataToSubmit = { ...productForm, discount: disc };
+    const dataToSubmit = {
+      ...productForm,
+      discount: disc,
+      shippingFee: Number(productForm.shippingFee || 0)
+    };
 
     if (editingProductId) {
       await editProduct(editingProductId, dataToSubmit);
@@ -138,7 +143,8 @@ export default function AdminProductsPage() {
       description: "Elegant and classy luxury suit.",
       careInstructions: "Dry Clean recommended.",
       shippingInfo: "Shipped within 2-3 business days.",
-      returnPolicy: "Hassle-free 7-day returns."
+      returnPolicy: "Hassle-free 7-day returns.",
+      shippingFee: 0,
     });
   };
 
@@ -161,7 +167,8 @@ export default function AdminProductsPage() {
       description: product.description,
       careInstructions: product.careInstructions,
       shippingInfo: product.shippingInfo,
-      returnPolicy: product.returnPolicy
+      returnPolicy: product.returnPolicy,
+      shippingFee: product.shippingFee ?? 0,
     });
     setIsAddingProduct(true);
   };
@@ -194,6 +201,7 @@ export default function AdminProductsPage() {
                     <th className="p-4 border-r border-zinc-100">Category</th>
                     <th className="p-4 border-r border-zinc-100">Original price</th>
                     <th className="p-4 border-r border-zinc-100">Sale price</th>
+                    <th className="p-4 border-r border-zinc-100">Delivery Fee</th>
                     <th className="p-4 text-center border-r border-zinc-100">Stock Status</th>
                     <th className="p-4 text-right">Actions</th>
                   </tr>
@@ -201,7 +209,7 @@ export default function AdminProductsPage() {
                 <tbody className="divide-y divide-zinc-200 font-medium">
                   {products.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="p-8 text-center text-zinc-400">
+                      <td colSpan={7} className="p-8 text-center text-zinc-400">
                         No products found. Click &quot;Add New Product&quot; to create one.
                       </td>
                     </tr>
@@ -220,6 +228,13 @@ export default function AdminProductsPage() {
                         <td className="p-4 border-r border-zinc-100 uppercase text-[10px] text-zinc-600">{product.category}</td>
                         <td className="p-4 border-r border-zinc-100 text-zinc-500 line-through">₹{product.originalPrice}</td>
                         <td className="p-4 border-r border-zinc-100 font-bold text-teal-700">₹{product.salePrice}</td>
+                        <td className="p-4 border-r border-zinc-100 font-semibold text-zinc-700">
+                          {product.shippingFee && product.shippingFee > 0 ? (
+                            `₹${product.shippingFee}`
+                          ) : (
+                            <span className="text-emerald-600 font-bold uppercase text-[10px]">FREE (₹0)</span>
+                          )}
+                        </td>
                         <td className="p-4 text-center border-r border-zinc-100">
                           <span className={`inline-block border px-2.5 py-1 text-[9px] font-bold rounded-lg uppercase tracking-wider ${
                             product.inStock 
@@ -527,64 +542,28 @@ export default function AdminProductsPage() {
                 <span className="text-[9px] text-zinc-400 block">At least one size is required. Click standard buttons or type and press Enter to add custom sizes.</span>
               </div>
 
-              {/* Colors Selector */}
-              <div className="sm:col-span-2 space-y-2">
-                <label className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 block">Garment Colors (Optional)</label>
-                
-                {/* List of currently added colors */}
-                {productForm.colors && productForm.colors.length > 0 ? (
-                  <div className="flex flex-wrap gap-2 mb-2">
-                    {productForm.colors.map((color) => (
-                      <span key={color} className="inline-flex items-center bg-teal-50 border border-teal-200 text-teal-800 text-xs font-semibold px-3 py-1.5 rounded-lg">
-                        {color}
-                        <button
-                          type="button"
-                          onClick={() => setProductForm(p => ({ ...p, colors: p.colors.filter(c => c !== color) }))}
-                          className="ml-2 text-teal-400 hover:text-rose-600 focus:outline-none text-xs font-bold"
-                        >
-                          ×
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-xs text-zinc-400 italic">No colors added yet. Color selector will be hidden on customer side.</p>
-                )}
-                
-                {/* Color input */}
-                <div className="flex space-x-2">
+
+              {/* Delivery Fee Input */}
+              <div className="sm:col-span-2 space-y-1">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 block">Delivery Fee (₹)</label>
+                <div className="relative">
+                  <span className="absolute left-3.5 top-2.5 text-zinc-400 font-bold text-xs">₹</span>
                   <input
-                    type="text"
-                    id="custom-color-input"
-                    placeholder="Add color (e.g. Crimson Red, Mint Green)"
-                    className="flex-grow bg-white text-xs px-3 py-2.5 rounded-lg border border-zinc-300 focus:outline-none focus:border-teal-500"
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        const val = e.currentTarget.value.trim();
-                        if (val && !productForm.colors.includes(val)) {
-                          setProductForm(p => ({ ...p, colors: [...p.colors, val] }));
-                          e.currentTarget.value = "";
-                        }
-                      }
+                    type="number"
+                    min="0"
+                    value={productForm.shippingFee === undefined || productForm.shippingFee === null ? "" : productForm.shippingFee}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setProductForm(p => ({
+                        ...p,
+                        shippingFee: val === "" ? 0 : Number(val)
+                      }));
                     }}
+                    className="w-full bg-white text-xs pl-8 pr-3 py-2.5 rounded-lg border border-zinc-300 focus:border-teal-600 focus:ring-1 focus:ring-teal-600 focus:outline-none transition-all"
+                    placeholder="0"
                   />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const input = document.getElementById("custom-color-input") as HTMLInputElement;
-                      const val = input?.value.trim();
-                      if (val && !productForm.colors.includes(val)) {
-                        setProductForm(p => ({ ...p, colors: [...p.colors, val] }));
-                        input.value = "";
-                      }
-                    }}
-                    className="bg-zinc-100 hover:bg-zinc-200 border border-zinc-300 text-zinc-700 px-4 py-2.5 rounded-lg text-xs font-semibold transition-colors"
-                  >
-                    Add
-                  </button>
                 </div>
-                <span className="text-[9px] text-zinc-400 block">Optional. Type a color and click Add or press Enter.</span>
+                <span className="text-[9px] text-zinc-400 block">Enter delivery fee for this product in ₹ (Enter 0 for free delivery).</span>
               </div>
 
               {/* Badges checklist */}

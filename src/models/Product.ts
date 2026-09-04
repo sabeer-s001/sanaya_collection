@@ -22,15 +22,13 @@ const ProductSchema = new mongoose.Schema(
     careInstructions: { type: String, default: "" },
     shippingInfo: { type: String, default: "" },
     returnPolicy: { type: String, default: "" },
+    shippingFee: { type: Number, default: null }, // Per-product override; null = use store default
   },
   { timestamps: true }
 );
 
-// Index on the custom `id` string field — this is what page.tsx queries via
-// findOne({ id }). Without this, every product page view does a full collection
-// scan. The `unique:true` in the schema field definition alone does NOT
-// guarantee the index exists on an existing Atlas collection.
-ProductSchema.index({ id: 1 }, { unique: true });
+// Note: { id: 1 } unique index is already created by `unique: true` in the field
+// definition above. No need to call ProductSchema.index() for it again.
 
 // Index for category lookups (shop/filter pages).
 ProductSchema.index({ category: 1 });

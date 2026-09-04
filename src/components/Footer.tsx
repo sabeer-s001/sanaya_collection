@@ -34,7 +34,7 @@ export default function Footer() {
             </div>
             <div>
               <h4 className="font-serif text-sm font-semibold tracking-wider">PAN INDIA SHIPPING</h4>
-              <p className="text-xs text-white/60 mt-1">Dispatched within 24-48 hours. Free shipping above ₹1999.</p>
+              <p className="text-xs text-white/60 mt-1">Dispatched within 24-48 hours. Fast & reliable delivery across India.</p>
             </div>
           </div>
           <div className="flex flex-col md:flex-row items-center space-y-3 md:space-y-0 md:space-x-4">

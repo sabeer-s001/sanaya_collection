@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import crypto from "crypto";
 import { dbConnect, OrderModel } from "@/lib/mongodb";
+import { createShipmentForOrder } from "@/lib/ithinkLogistics";
 
 export async function POST(request: Request) {
   try {
@@ -14,8 +15,8 @@ export async function POST(request: Request) {
 
     const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET || "";
     if (!webhookSecret) {
-      console.error("RAZORPAY_WEBHOOK_SECRET environment variable is not configured");
-      return NextResponse.json({ error: "Webhook secret configuration error" }, { status: 500 });
+      console.warn("[PAYMENT] RAZORPAY_WEBHOOK_SECRET is not configured. Webhook event skipped gracefully.");
+      return NextResponse.json({ received: false, warning: "Webhook secret not configured" }, { status: 200 });
     }
 
     const expectedSignature = crypto
@@ -35,7 +36,6 @@ export async function POST(request: Request) {
 
     let razorpayOrderId: string | null = null;
     let razorpayPaymentId: string | null = null;
-    let razorpaySignature: string | null = null;
 
     if (payload.event === "order.paid") {
       const orderEntity = payload.payload.order.entity;
@@ -58,6 +58,13 @@ export async function POST(request: Request) {
 
       if (updated) {
         console.log(`Successfully updated order ${updated.id} to Paid via webhook event: ${payload.event}`);
+
+        // Auto-create shipment if not already created (webhook fallback)
+        if (!updated.awbNumber) {
+          createShipmentForOrder(updated.toObject()).catch((err) =>
+            console.error(`Webhook shipment creation failed for order ${updated.id}:`, err)
+          );
+        }
       } else {
         console.warn(`Order with Razorpay Order ID ${razorpayOrderId} not found in database for webhook event: ${payload.event}`);
       }

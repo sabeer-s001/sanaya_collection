@@ -16,7 +16,8 @@ import {
   ShieldCheck,
   AlertCircle,
   Sparkles,
-  Loader2
+  Loader2,
+  Truck
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -24,6 +25,7 @@ export default function CheckoutPage() {
   const router = useRouter();
   const { 
     cart, 
+    products,
     session, 
     discountRate, 
     placeOrder,
@@ -49,6 +51,20 @@ export default function CheckoutPage() {
     phone: session?.addresses[0]?.phone || ""
   });
   const [paymentMethod, setPaymentMethod] = useState("Credit / Debit Card");
+
+  // Shipping settings from store admin
+  const [shippingFee, setShippingFee] = useState<number>(0);
+  const [freeShippingThreshold, setFreeShippingThreshold] = useState<number>(0);
+
+  useEffect(() => {
+    fetch("/api/settings")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.shippingFee !== undefined) setShippingFee(data.shippingFee);
+        if (data.freeShippingThreshold !== undefined) setFreeShippingThreshold(data.freeShippingThreshold);
+      })
+      .catch(() => {});
+  }, []);
 
   // Flow states
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -92,11 +108,20 @@ export default function CheckoutPage() {
   const subtotal = cart.reduce((acc, item) => acc + (item.product.salePrice * item.quantity), 0);
   const discountAmount = Math.round(subtotal * discountRate);
   const taxableAmount = subtotal - discountAmount;
-  const gst = Math.round(taxableAmount * 0.18);
-  const shipping = taxableAmount > 1999 || taxableAmount === 0 ? 0 : 150;
+
+  // Use live product data for shippingFee (cart snapshots may be stale)
+  const productShippingFees = cart
+    .map(item => {
+      const liveProduct = products.find(p => p.id === item.product.id);
+      return liveProduct?.shippingFee ?? item.product.shippingFee;
+    })
+    .filter((fee): fee is number => fee !== undefined && fee !== null);
+  const effectiveShippingFee = productShippingFees.length > 0 ? Math.max(...productShippingFees) : shippingFee;
+
+  const shipping = (freeShippingThreshold > 0 && taxableAmount >= freeShippingThreshold) || taxableAmount === 0 ? 0 : effectiveShippingFee;
   const isCOD = paymentMethod === "Cash On Delivery (COD)";
-  const codFee = isCOD ? 50 : 0;
-  const finalTotal = taxableAmount + gst + shipping + codFee;
+  const codFee = 0;
+  const finalTotal = taxableAmount + shipping + codFee;
 
 
 
@@ -140,12 +165,20 @@ export default function CheckoutPage() {
           email: session?.email || "",
           phone: addressForm.phone,
           orderId: order.id,
+          paymentMethod,
         });
         
         if (!paymentSuccess) {
           // User dismissed the modal; order remains Pending in DB
           setIsSubmitting(false);
           return;
+        }
+
+        // Step 3: Fetch updated order details from MongoDB (with AWB, courier name, etc.)
+        const updatedRes = await fetch(`/api/orders/${order.id}`);
+        if (updatedRes.ok) {
+          const updatedOrder = await updatedRes.json();
+          order = updatedOrder;
         }
 
         // Clear the cart on frontend after successful payment verification
@@ -304,116 +337,244 @@ export default function CheckoutPage() {
                   </div>
 
                   {/* Payment Method Container */}
-                  <div className="bg-white rounded-2xl border border-brand-primary/5 shadow-sm p-6 sm:p-8">
-                    <div className="flex items-center space-x-2 border-b border-brand-lightGray pb-4 mb-6">
-                      <CreditCard className="text-brand-accent" size={20} />
-                      <h2 className="font-serif text-lg font-bold text-brand-text">2. Payment Method</h2>
+                  <div className="bg-white rounded-2xl border border-brand-primary/10 shadow-md p-6 sm:p-8 space-y-6">
+                    <div className="flex items-center justify-between border-b border-brand-lightGray pb-4">
+                      <div className="flex items-center space-x-2.5">
+                        <div className="w-8 h-8 bg-brand-accent/10 rounded-full flex items-center justify-center text-brand-accent">
+                          <CreditCard size={18} />
+                        </div>
+                        <div>
+                          <h2 className="font-serif text-lg font-bold text-brand-text">2. Select Payment Method</h2>
+                          <p className="text-[11px] text-brand-darkGray">100% Encrypted & PCI-DSS Compliant Transactions</p>
+                        </div>
+                      </div>
+                      <span className="hidden sm:flex items-center space-x-1 text-[10px] text-green-700 bg-green-50 px-2.5 py-1 rounded-full font-bold border border-green-200">
+                        <ShieldCheck size={12} />
+                        <span>256-Bit SSL Secured</span>
+                      </span>
                     </div>
 
                     <div className="space-y-3">
-                      {[
-                        { 
-                          name: "Credit / Debit Card", 
-                          desc: "Pay securely with Visa, Mastercard, or RuPay",
-                          icon: "💳",
-                          badge: "Recommended"
-                        },
-                        { 
-                          name: "UPI / GPay / PhonePe", 
-                          desc: "Pay instantly using any UPI app — Google Pay, PhonePe, Paytm, etc.",
-                          icon: "📱",
-                          badge: "Instant"
-                        },
-                        { 
-                          name: "Cash On Delivery (COD)", 
-                          desc: "Pay with cash on delivery (adds ₹50 collection fee)",
-                          icon: "🏠",
-                          badge: null
-                        }
-                      ].map((method) => (
-                        <div 
-                          key={method.name} 
-                          className={`border rounded-xl overflow-hidden transition-all cursor-pointer ${
-                            paymentMethod === method.name 
-                              ? "border-brand-accent ring-2 ring-brand-accent/20 bg-brand-accent/[0.02]" 
-                              : "border-brand-lightGray hover:border-brand-accent/40"
-                          }`}
-                          onClick={() => setPaymentMethod(method.name)}
-                        >
-                          <label className="flex items-start p-4 cursor-pointer">
-                            <input
-                              type="radio"
-                              name="paymentMethod"
-                              value={method.name}
-                              checked={paymentMethod === method.name}
-                              onChange={() => setPaymentMethod(method.name)}
-                              className="mt-1 mr-3 text-brand-accent focus:ring-brand-accent"
-                            />
-                            <div className="flex-grow">
-                              <div className="flex items-center space-x-2">
-                                <span className="text-base">{method.icon}</span>
-                                <span className="font-serif font-bold text-xs sm:text-sm text-brand-text">{method.name}</span>
-                                {method.badge && (
-                                  <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${
-                                    method.badge === "Instant" 
-                                      ? "bg-blue-50 text-blue-700" 
-                                      : "bg-green-100 text-green-800"
-                                  }`}>
-                                    {method.badge}
+                      {/* 1. UPI Payment Option */}
+                      <div 
+                        className={`border rounded-2xl transition-all cursor-pointer overflow-hidden ${
+                          paymentMethod === "UPI / GPay / PhonePe" 
+                            ? "border-emerald-600 ring-2 ring-emerald-500/20 bg-emerald-50/30 shadow-sm" 
+                            : "border-neutral-200 hover:border-emerald-400 bg-white"
+                        }`}
+                        onClick={() => setPaymentMethod("UPI / GPay / PhonePe")}
+                      >
+                        <div className="p-4 sm:p-5 flex items-start justify-between">
+                          <div className="flex items-start space-x-3.5">
+                            <div className="mt-0.5">
+                              <input
+                                type="radio"
+                                name="paymentMethod"
+                                value="UPI / GPay / PhonePe"
+                                checked={paymentMethod === "UPI / GPay / PhonePe"}
+                                onChange={() => setPaymentMethod("UPI / GPay / PhonePe")}
+                                className="w-4 h-4 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                              />
+                            </div>
+                            <div>
+                              <div className="flex items-center space-x-2 flex-wrap gap-y-1">
+                                <span className="font-serif font-bold text-sm text-brand-text">
+                                  UPI / QR Code (GPay, PhonePe, Paytm)
+                                </span>
+                                <span className="text-[9px] font-extrabold px-2 py-0.5 rounded-md uppercase tracking-wider bg-emerald-600 text-white">
+                                  Fastest
+                                </span>
+                              </div>
+                              <p className="text-xs text-brand-darkGray mt-1">
+                                Pay instantly using Google Pay, PhonePe, Paytm, BHIM or any UPI app
+                              </p>
+
+                              {/* Authentic Brand logo pills */}
+                              <div className="flex flex-wrap items-center gap-2 mt-3">
+                                {/* Google Pay */}
+                                <span className="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-bold bg-white text-zinc-900 border border-neutral-200 shadow-2xs">
+                                  <svg className="w-4 h-4 mr-1.5 flex-shrink-0" viewBox="0 0 24 24">
+                                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+                                  </svg>
+                                  Google Pay
+                                </span>
+
+                                {/* PhonePe */}
+                                <span className="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-black tracking-wide bg-[#5f259f] text-white shadow-2xs">
+                                  <span className="w-4 h-4 rounded-full bg-white text-[#5f259f] font-black flex items-center justify-center text-[10px] mr-1.5 leading-none">
+                                    पे
                                   </span>
-                                )}
-                              </div>
-                              <span className="block text-[11px] text-brand-darkGray mt-1 ml-6">{method.desc}</span>
-                            </div>
-                          </label>
+                                  PhonePe
+                                </span>
 
-                          {/* Info box for Credit / Debit Card */}
-                          {paymentMethod === "Credit / Debit Card" && method.name === "Credit / Debit Card" && (
-                            <div className="bg-brand-bg/50 p-4 border-t border-brand-lightGray">
-                              <div className="flex items-start space-x-3">
-                                <ShieldCheck size={18} className="text-green-600 flex-shrink-0 mt-0.5" />
-                                <div className="text-[11px] text-brand-darkGray space-y-1">
-                                  <p className="font-semibold text-brand-text">Secure Card Payment</p>
-                                  <p>A secure payment window will open for you to enter your card details.</p>
-                                  <div className="flex flex-wrap gap-2 mt-2">
-                                    {["Visa", "Mastercard", "RuPay", "Net Banking"].map(m => (
-                                      <span key={m} className="bg-white px-2 py-1 rounded border border-brand-lightGray text-[10px] font-medium">
-                                        {m}
-                                      </span>
-                                    ))}
-                                  </div>
-                                  <p className="mt-2 text-[10px] text-brand-darkGray/70">
-                                    Your card details are never stored on our servers. All transactions are PCI DSS compliant.
-                                  </p>
-                                </div>
-                              </div>
-                            </div>
-                          )}
+                                {/* Paytm */}
+                                <span className="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-black bg-[#002e6e] text-white shadow-2xs">
+                                  Pay<span className="text-[#00baf2]">tm</span>
+                                </span>
 
-                          {/* Info box for UPI */}
-                          {paymentMethod === "UPI / GPay / PhonePe" && method.name === "UPI / GPay / PhonePe" && (
-                            <div className="bg-brand-bg/50 p-4 border-t border-brand-lightGray">
-                              <div className="flex items-start space-x-3">
-                                <ShieldCheck size={18} className="text-green-600 flex-shrink-0 mt-0.5" />
-                                <div className="text-[11px] text-brand-darkGray space-y-1">
-                                  <p className="font-semibold text-brand-text">Pay via UPI</p>
-                                  <p>You&apos;ll be redirected to complete payment using your preferred UPI app.</p>
-                                  <div className="flex flex-wrap gap-2 mt-2">
-                                    {["Google Pay", "PhonePe", "Paytm", "BHIM UPI", "Other UPI"].map(m => (
-                                      <span key={m} className="bg-white px-2 py-1 rounded border border-brand-lightGray text-[10px] font-medium">
-                                        {m}
-                                      </span>
-                                    ))}
-                                  </div>
-                                  <p className="mt-2 text-[10px] text-brand-darkGray/70">
-                                    Instant confirmation. No card details needed.
-                                  </p>
-                                </div>
+                                {/* BHIM / UPI */}
+                                <span className="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-bold bg-white text-zinc-900 border border-neutral-200 shadow-2xs">
+                                  <span className="text-orange-600 font-extrabold mr-0.5">BHIM</span>
+                                  <span className="text-emerald-600 font-extrabold">UPI</span>
+                                </span>
                               </div>
                             </div>
-                          )}
+                          </div>
+                          <span className="text-xs font-bold text-emerald-700 bg-emerald-100/60 px-2.5 py-1 rounded-full hidden sm:inline-block">
+                            0% Extra Fee
+                          </span>
                         </div>
-                      ))}
+
+                        {/* UPI Expanded Info */}
+                        {paymentMethod === "UPI / GPay / PhonePe" && (
+                          <div className="bg-white/80 p-4 border-t border-emerald-200/60 space-y-2">
+                            <div className="flex items-center space-x-2 text-xs text-emerald-800 font-semibold">
+                              <CheckCircle size={14} className="text-emerald-600" />
+                              <span>Select your UPI app or scan QR code on next screen</span>
+                            </div>
+                            <p className="text-[11px] text-brand-darkGray pl-5">
+                              No manual bank entry needed. Instant automatic payment verification.
+                            </p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* 2. Credit / Debit Card Option (NO Recommended badge per user request!) */}
+                      <div 
+                        className={`border rounded-2xl transition-all cursor-pointer overflow-hidden ${
+                          paymentMethod === "Credit / Debit Card" 
+                            ? "border-emerald-600 ring-2 ring-emerald-500/20 bg-emerald-50/30 shadow-sm" 
+                            : "border-neutral-200 hover:border-emerald-400 bg-white"
+                        }`}
+                        onClick={() => setPaymentMethod("Credit / Debit Card")}
+                      >
+                        <div className="p-4 sm:p-5 flex items-start justify-between">
+                          <div className="flex items-start space-x-3.5">
+                            <div className="mt-0.5">
+                              <input
+                                type="radio"
+                                name="paymentMethod"
+                                value="Credit / Debit Card"
+                                checked={paymentMethod === "Credit / Debit Card"}
+                                onChange={() => setPaymentMethod("Credit / Debit Card")}
+                                className="w-4 h-4 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                              />
+                            </div>
+                            <div>
+                              <div className="flex items-center space-x-2 flex-wrap gap-y-1">
+                                <span className="font-serif font-bold text-sm text-brand-text">
+                                  Credit / Debit / ATM Card
+                                </span>
+                              </div>
+                              <p className="text-xs text-brand-darkGray mt-1">
+                                All major Indian & International cards accepted (Visa, Mastercard, RuPay)
+                              </p>
+
+                              {/* Card Brand Pills */}
+                              <div className="flex flex-wrap items-center gap-2 mt-3">
+                                <span className="inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-black bg-blue-900 text-white tracking-wider shadow-2xs">
+                                  VISA
+                                </span>
+                                <span className="inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-bold bg-neutral-900 text-white shadow-2xs">
+                                  <span className="w-2.5 h-2.5 bg-red-500 rounded-full inline-block mr-0.5 opacity-90" />
+                                  <span className="w-2.5 h-2.5 bg-amber-500 rounded-full inline-block -ml-1.5 mr-1 opacity-90" />
+                                  Mastercard
+                                </span>
+                                <span className="inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-bold bg-gradient-to-r from-orange-600 to-blue-700 text-white shadow-2xs">
+                                  RuPay
+                                </span>
+                                <span className="inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-bold bg-neutral-100 text-neutral-700 border border-neutral-200">
+                                  Net Banking
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                          <span className="text-xs font-bold text-emerald-700 bg-emerald-100/60 px-2.5 py-1 rounded-full hidden sm:inline-block">
+                            100% Safe
+                          </span>
+                        </div>
+
+                        {/* Card Expanded Info */}
+                        {paymentMethod === "Credit / Debit Card" && (
+                          <div className="bg-white/80 p-4 border-t border-emerald-200/60 space-y-2">
+                            <div className="flex items-center space-x-2 text-xs text-brand-text font-semibold">
+                              <ShieldCheck size={14} className="text-emerald-600" />
+                              <span>Bank-grade 256-bit encryption for maximum card security</span>
+                            </div>
+                            <p className="text-[11px] text-brand-darkGray pl-5">
+                              Card numbers are processed strictly through Razorpay&apos;s PCI-DSS Level 1 certified gateway.
+                            </p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* 3. Cash On Delivery (COD) Option */}
+                      <div 
+                        className={`border rounded-2xl transition-all cursor-pointer overflow-hidden ${
+                          paymentMethod === "Cash On Delivery (COD)" 
+                            ? "border-emerald-600 ring-2 ring-emerald-500/20 bg-emerald-50/30 shadow-sm" 
+                            : "border-neutral-200 hover:border-emerald-400 bg-white"
+                        }`}
+                        onClick={() => setPaymentMethod("Cash On Delivery (COD)")}
+                      >
+                        <div className="p-4 sm:p-5 flex items-start justify-between">
+                          <div className="flex items-start space-x-3.5">
+                            <div className="mt-0.5">
+                              <input
+                                type="radio"
+                                name="paymentMethod"
+                                value="Cash On Delivery (COD)"
+                                checked={paymentMethod === "Cash On Delivery (COD)"}
+                                onChange={() => setPaymentMethod("Cash On Delivery (COD)")}
+                                className="w-4 h-4 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                              />
+                            </div>
+                            <div>
+                              <div className="flex items-center space-x-2 flex-wrap gap-y-1">
+                                <span className="font-serif font-bold text-sm text-brand-text">
+                                  Cash On Delivery (COD)
+                                </span>
+                                <span className="text-[9px] font-bold px-2 py-0.5 rounded-md uppercase tracking-wider bg-amber-100 text-amber-800 border border-amber-300">
+                                  Pay at Doorstep
+                                </span>
+                              </div>
+                              <p className="text-xs text-brand-darkGray mt-1">
+                                Pay with cash when your shipment arrives at your home address
+                              </p>
+                            </div>
+                          </div>
+
+                        </div>
+
+                        {/* COD Expanded Info */}
+                        {paymentMethod === "Cash On Delivery (COD)" && (
+                          <div className="bg-amber-50/40 p-4 border-t border-amber-200/60 space-y-1">
+                            <div className="flex items-center space-x-2 text-xs text-amber-900 font-semibold">
+                              <Truck size={14} className="text-amber-700" />
+                              <span>Shipped via iThink Logistics COD partner</span>
+                            </div>
+                            <p className="text-[11px] text-amber-800/90 pl-5">
+                              Please keep exact cash amount (₹{finalTotal}) ready for the courier partner upon delivery.
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Trust Banner at bottom of Payment Card */}
+                    <div className="pt-2 flex items-center justify-between border-t border-neutral-100 text-[10px] text-brand-darkGray flex-wrap gap-2">
+                      <span className="flex items-center space-x-1">
+                        <ShieldCheck size={12} className="text-emerald-600" />
+                        <span>Powered by Razorpay Secure</span>
+                      </span>
+                      <div className="flex space-x-2 font-semibold text-neutral-500">
+                        <span>Instant Refund Guarantee</span>
+                        <span>•</span>
+                        <span>Zero Hidden Charges</span>
+                      </div>
                     </div>
                   </div>
 
@@ -489,10 +650,7 @@ export default function CheckoutPage() {
                       <span>-₹{discountAmount}</span>
                     </div>
                   )}
-                  <div className="flex justify-between">
-                    <span>GST (18%)</span>
-                    <span>₹{gst}</span>
-                  </div>
+
                   <div className="flex justify-between">
                     <span>Shipping</span>
                     {shipping === 0 ? (
@@ -501,12 +659,7 @@ export default function CheckoutPage() {
                       <span>₹{shipping}</span>
                     )}
                   </div>
-                  {paymentMethod === "Cash On Delivery (COD)" && (
-                    <div className="flex justify-between text-brand-accent">
-                      <span>COD Collection Fee</span>
-                      <span>₹50</span>
-                    </div>
-                  )}
+
                 </div>
 
                 <hr className="border-brand-lightGray" />
@@ -543,7 +696,7 @@ export default function CheckoutPage() {
                 </span>
                 <h2 className="font-serif text-2xl sm:text-3xl font-bold text-brand-text">Thank You For Your Purchase!</h2>
                 <p className="text-xs text-brand-darkGray max-w-sm mx-auto leading-relaxed">
-                  We have received your order. An email and SMS receipt with shipping tracking information has been sent to you.
+                  We have received your order. You can track your shipment status and details anytime from your order tracking page.
                 </p>
               </div>
 
@@ -568,6 +721,18 @@ export default function CheckoutPage() {
                       <p>Status: <span className="text-green-600 font-semibold">{placedOrderDetails.status}</span></p>
                     </div>
                   </div>
+
+                  {/* iThink Logistics AWB Section */}
+                  {placedOrderDetails.awbNumber && (
+                    <div className="border-t border-brand-lightGray pt-3 space-y-1">
+                      <p className="font-bold text-brand-text flex items-center gap-1">
+                        <Truck size={14} className="text-brand-accent" /> Shipping Information:
+                      </p>
+                      <p className="text-[11px]">Courier: <span className="font-semibold text-brand-text">{placedOrderDetails.courierName || "Allocated"}</span></p>
+                      <p className="text-[11px]">AWB Tracking Number: <span className="font-mono font-semibold text-brand-accent bg-white px-2 py-0.5 rounded border border-brand-lightGray">{placedOrderDetails.awbNumber}</span></p>
+                    </div>
+                  )}
+
                   <div className="border-t border-brand-lightGray pt-3 flex justify-between font-bold text-brand-text text-sm">
                     <span>Amount Paid:</span>
                     <span className="text-brand-accent">₹{placedOrderDetails.totalAmount}</span>
@@ -577,10 +742,10 @@ export default function CheckoutPage() {
 
               <div className="pt-4 flex flex-col sm:flex-row gap-3 justify-center">
                 <Link
-                  href="/dashboard?tab=orders"
+                  href={placedOrderDetails ? `/orders/${placedOrderDetails.id}` : "/orders"}
                   className="bg-brand-accent hover:bg-brand-primary text-white text-xs px-8 py-3.5 rounded-full font-semibold uppercase tracking-widest text-center transition-all flex items-center justify-center"
                 >
-                  Track Order History
+                  Track My Order
                 </Link>
                 <Link
                   href="/"

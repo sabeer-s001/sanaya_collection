@@ -8,7 +8,8 @@ import {
   ArrowLeft,
   ExternalLink,
   Image as ImageIcon,
-  Pencil
+  Pencil,
+  Link as LinkIcon
 } from "lucide-react";
 
 export default function AdminHeroPage() {
@@ -23,7 +24,7 @@ export default function AdminHeroPage() {
   // Hero Form states
   const [isAddingHero, setIsAddingHero] = useState(false);
   const [editingHeroId, setEditingHeroId] = useState<string | null>(null);
-  const [heroForm, setHeroForm] = useState({ desktopImage: "", mobileImage: "", order: 0 });
+  const [heroForm, setHeroForm] = useState({ desktopImage: "", mobileImage: "", link: "", order: 0 });
   const [isUploadingDesktop, setIsUploadingDesktop] = useState(false);
   const [isUploadingMobile, setIsUploadingMobile] = useState(false);
 
@@ -76,18 +77,19 @@ export default function AdminHeroPage() {
       await editHeroImage(editingHeroId, {
         desktopImage: heroForm.desktopImage,
         mobileImage: heroForm.mobileImage,
+        link: heroForm.link,
         order: Number(heroForm.order)
       });
       setEditingHeroId(null);
-      setHeroForm({ desktopImage: "", mobileImage: "", order: 0 });
+      setHeroForm({ desktopImage: "", mobileImage: "", link: "", order: 0 });
     } else {
       if (heroImages.length >= 4) {
         alert("Maximum limit of 4 hero slides reached. Please delete an existing slide first.");
         return;
       }
-      await addHeroImage(heroForm.desktopImage, heroForm.mobileImage);
+      await addHeroImage(heroForm.desktopImage, heroForm.mobileImage, heroForm.link);
       setIsAddingHero(false);
-      setHeroForm({ desktopImage: "", mobileImage: "", order: 0 });
+      setHeroForm({ desktopImage: "", mobileImage: "", link: "", order: 0 });
     }
   };
 
@@ -140,6 +142,16 @@ export default function AdminHeroPage() {
                       </span>
                     </div>
 
+                    {/* Target Link Badge */}
+                    {image.link && (
+                      <div className="flex items-center space-x-1.5 text-xs text-zinc-600 bg-rose-50 border border-rose-100 p-2 rounded-lg truncate">
+                        <LinkIcon size={13} className="text-rose-600 flex-shrink-0" />
+                        <span className="truncate text-[11px] font-mono text-rose-700 font-medium">
+                          {image.link}
+                        </span>
+                      </div>
+                    )}
+
                     {/* Images Previews */}
                     <div className="space-y-3">
                       {/* Desktop */}
@@ -174,6 +186,7 @@ export default function AdminHeroPage() {
                         setHeroForm({
                           desktopImage: image.desktopImage,
                           mobileImage: image.mobileImage,
+                          link: image.link || "",
                           order: image.order || 0
                         });
                       }}
@@ -207,7 +220,7 @@ export default function AdminHeroPage() {
               onClick={() => {
                 setIsAddingHero(false);
                 setEditingHeroId(null);
-                setHeroForm({ desktopImage: "", mobileImage: "", order: 0 });
+                setHeroForm({ desktopImage: "", mobileImage: "", link: "", order: 0 });
               }}
               className="p-2 border border-zinc-300 hover:bg-zinc-100 rounded-xl transition-colors bg-white text-zinc-700"
             >
@@ -226,6 +239,21 @@ export default function AdminHeroPage() {
           <form onSubmit={handleHeroSubmit} className="space-y-6 max-w-2xl bg-white border border-zinc-200 rounded-2xl p-6 shadow-sm">
             <div className="space-y-6">
               
+              {/* TARGET LINK */}
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 block">Target Link / URL (Optional)</label>
+                <input
+                  type="text"
+                  value={heroForm.link}
+                  onChange={(e) => setHeroForm(p => ({ ...p, link: e.target.value }))}
+                  className="w-full text-xs p-3 border border-zinc-200 rounded-xl focus:outline-none focus:border-rose-500 bg-zinc-50/50"
+                  placeholder="e.g. /shop or /shop?category=Kurtis or /product/65d12345"
+                />
+                <p className="text-[10px] text-zinc-500">
+                  When users click this hero slide banner on the home page, they will be redirected to this link.
+                </p>
+              </div>
+
               {/* DESKTOP */}
               <div className="space-y-2">
                 <label className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 block">Desktop Image (Width 2000px Recommended) *</label>
@@ -366,7 +394,7 @@ export default function AdminHeroPage() {
                 onClick={() => {
                   setIsAddingHero(false);
                   setEditingHeroId(null);
-                  setHeroForm({ desktopImage: "", mobileImage: "", order: 0 });
+                  setHeroForm({ desktopImage: "", mobileImage: "", link: "", order: 0 });
                 }}
                 className="bg-zinc-100 hover:bg-zinc-200 text-zinc-800 text-xs px-6 py-2.5 rounded-lg font-bold uppercase tracking-wider border border-zinc-300 transition-colors shadow-xs"
               >

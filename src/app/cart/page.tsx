@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useApp } from "@/context/AppContext";
@@ -24,6 +24,7 @@ export default function CartPage() {
   const router = useRouter();
   const { 
     cart, 
+    products,
     coupon, 
     discountRate, 
     updateCartQty, 
@@ -33,31 +34,39 @@ export default function CartPage() {
     session
   } = useApp();
 
-  const [couponInput, setCouponInput] = useState("");
-  const [couponFeedback, setCouponFeedback] = useState<{ success: boolean; message: string } | null>(null);
+
+
+  const [shippingFee, setShippingFee] = useState<number>(0);
+  const [freeShippingThreshold, setFreeShippingThreshold] = useState<number>(0);
+
+  useEffect(() => {
+    fetch("/api/settings")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.shippingFee !== undefined) setShippingFee(data.shippingFee);
+        if (data.freeShippingThreshold !== undefined) setFreeShippingThreshold(data.freeShippingThreshold);
+      })
+      .catch(() => {});
+  }, []);
 
   const cartCount = cart.reduce((acc, item) => acc + item.quantity, 0);
   const subtotal = cart.reduce((acc, item) => acc + (item.product.salePrice * item.quantity), 0);
   const discountAmount = Math.round(subtotal * discountRate);
   const taxableAmount = subtotal - discountAmount;
-  const gst = Math.round(taxableAmount * 0.18); // 18% GST
-  const shipping = taxableAmount > 1999 || taxableAmount === 0 ? 0 : 150;
-  const finalTotal = taxableAmount + gst + shipping;
 
-  const handleCouponApply = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!couponInput.trim()) return;
-    const res = applyCoupon(couponInput);
-    setCouponFeedback({ success: res.success, message: res.message });
-    if (res.success) {
-      setCouponInput("");
-    }
-  };
+  // Use live product data for shippingFee (cart snapshots may be stale)
+  const productShippingFees = cart
+    .map(item => {
+      const liveProduct = products.find(p => p.id === item.product.id);
+      return liveProduct?.shippingFee ?? item.product.shippingFee;
+    })
+    .filter((fee): fee is number => fee !== undefined && fee !== null);
+  const effectiveShippingFee = productShippingFees.length > 0 ? Math.max(...productShippingFees) : shippingFee;
 
-  const handleRemoveCoupon = () => {
-    removeCoupon();
-    setCouponFeedback(null);
-  };
+  const shipping = (freeShippingThreshold > 0 && taxableAmount >= freeShippingThreshold) || taxableAmount === 0 ? 0 : effectiveShippingFee;
+  const finalTotal = taxableAmount + shipping;
+
+
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -181,57 +190,6 @@ export default function CartPage() {
             {/* Right Column: Order Summary & Promo */}
             <div className="space-y-6">
               
-              {/* Promo code */}
-              <div className="bg-white rounded-2xl border border-brand-primary/5 shadow-sm p-6">
-                <h3 className="font-serif font-bold text-sm tracking-wider uppercase text-brand-text mb-4">
-                  Apply Promo Code
-                </h3>
-                
-                {coupon ? (
-                  <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center justify-between text-xs">
-                    <div className="flex items-center space-x-2 text-green-800">
-                      <Tag size={16} className="fill-green-200" />
-                      <div>
-                        <p className="font-bold">{coupon} Applied</p>
-                        <p className="text-[10px] text-green-600">You saved {discountRate * 100}% on this purchase.</p>
-                      </div>
-                    </div>
-                    <button 
-                      onClick={handleRemoveCoupon} 
-                      className="text-xs text-red-500 hover:text-red-700 font-bold underline ml-2"
-                    >
-                      Remove
-                    </button>
-                  </div>
-                ) : (
-                  <form onSubmit={handleCouponApply} className="flex space-x-2">
-                    <input
-                      type="text"
-                      placeholder="e.g. WELCOME10"
-                      value={couponInput}
-                      onChange={(e) => setCouponInput(e.target.value)}
-                      className="flex-grow bg-brand-bg text-brand-text text-xs px-4 py-3 rounded-lg border border-brand-lightGray focus:border-brand-accent focus:outline-none uppercase"
-                    />
-                    <button
-                      type="submit"
-                      className="bg-brand-text hover:bg-brand-accent text-white text-xs px-6 py-3 rounded-lg font-semibold uppercase tracking-wider transition-colors"
-                    >
-                      Apply
-                    </button>
-                  </form>
-                )}
-
-                {/* Feedback Messages */}
-                {couponFeedback && !coupon && (
-                  <div className={`mt-3 p-3 rounded-lg flex items-start space-x-2 text-xs ${
-                    couponFeedback.success ? "bg-green-50 text-green-800" : "bg-red-50 text-red-800"
-                  }`}>
-                    <AlertCircle size={14} className="flex-shrink-0 mt-0.5" />
-                    <span>{couponFeedback.message}</span>
-                  </div>
-                )}
-              </div>
-
               {/* Order summary calculations */}
               <div className="bg-white rounded-2xl border border-brand-primary/5 shadow-sm p-6 space-y-4">
                 <h3 className="font-serif font-bold text-sm tracking-wider uppercase text-brand-text border-b border-brand-lightGray pb-3">
@@ -251,10 +209,6 @@ export default function CartPage() {
                     </div>
                   )}
 
-                  <div className="flex justify-between">
-                    <span>GST (18% Goods & Services Tax)</span>
-                    <span className="font-semibold text-brand-text">₹{gst}</span>
-                  </div>
 
                   <div className="flex justify-between">
                     <span>Shipping Fee</span>
@@ -267,7 +221,7 @@ export default function CartPage() {
 
                   {shipping > 0 && (
                     <p className="text-[10px] text-brand-accent/80 italic leading-relaxed pt-1">
-                      * Add ₹{Math.max(0, 2000 - taxableAmount)} more worth of products to qualify for free shipping!
+                    * Add ₹{Math.max(0, freeShippingThreshold - taxableAmount)} more worth of products to qualify for free shipping!
                     </p>
                   )}
                 </div>
