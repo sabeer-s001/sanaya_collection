@@ -59,6 +59,7 @@ export interface Order {
   totalAmount: number;
   status: "Pending" | "Processing" | "Shipped" | "Delivered" | "Cancelled";
   trackingNumber: string;
+  cancelReason?: string;
   razorpayOrderId?: string;
   razorpayPaymentId?: string;
   razorpaySignature?: string;
@@ -91,6 +92,7 @@ export interface HeroImage {
 
 interface AppContextType {
   products: Product[];
+  productsLoading: boolean;
   cart: CartItem[];
   wishlist: string[];
   orders: Order[];
@@ -110,7 +112,9 @@ interface AppContextType {
   
   // Order Actions
   placeOrder: (shippingAddress: Address, paymentMethod: string, paymentStatus?: string) => Promise<Order | null>;
+  addVerifiedOrder: (order: Order) => void;
   updateOrderStatus: (orderId: string, status: Order["status"]) => Promise<void>;
+  deleteOrder: (orderId: string, reason?: string, permanent?: boolean) => Promise<boolean>;
 
   // Coupon Actions
   applyCoupon: (code: string) => { success: boolean; message: string };
@@ -141,6 +145,7 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [products, setProducts] = useState<Product[]>([]);
+  const [productsLoading, setProductsLoading] = useState<boolean>(true);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [wishlist, setWishlist] = useState<string[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
@@ -205,6 +210,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             setProducts(data);
           }
         }
+        setProductsLoading(false);
 
         if (storedSession) {
           setSession(storedSession);
@@ -478,6 +484,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return null;
   };
 
+  const addVerifiedOrder = (order: Order) => {
+    setOrders((prevOrders) => [order, ...prevOrders]);
+    if (typeof window !== "undefined" && order.shippingAddress?.phone) {
+      const cleanPhone = order.shippingAddress.phone.replace(/\D/g, "");
+      if (cleanPhone) {
+        localStorage.setItem("sanaya_customer_phone", cleanPhone);
+      }
+    }
+    clearCart();
+  };
+
   const updateOrderStatus = async (orderId: string, status: Order["status"]) => {
     try {
       const res = await authenticatedFetch(`/api/orders/${orderId}`, {
@@ -494,6 +511,31 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } catch (error) {
       console.error("Failed to update order status on backend", error);
     }
+  };
+
+  const deleteOrder = async (orderId: string, reason: string = "Order cancelled by administrator", permanent: boolean = false): Promise<boolean> => {
+    try {
+      const res = await authenticatedFetch(`/api/orders/${orderId}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason, permanent })
+      });
+      if (res.ok) {
+        if (permanent) {
+          setOrders((prevOrders) => prevOrders.filter((o) => o.id !== orderId));
+        } else {
+          const data = await res.json();
+          const updatedOrder = data.order;
+          setOrders((prevOrders) =>
+            prevOrders.map((o) => (o.id === orderId ? (updatedOrder || { ...o, status: "Cancelled", cancelReason: reason }) : o))
+          );
+        }
+        return true;
+      }
+    } catch (error) {
+      console.error("Failed to delete/cancel order", error);
+    }
+    return false;
   };
 
   // User Actions
@@ -786,6 +828,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     <AppContext.Provider
       value={{
         products,
+        productsLoading,
         cart,
         wishlist,
         orders,
@@ -801,7 +844,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         removeCoupon,
         toggleWishlist,
         placeOrder,
+        addVerifiedOrder,
         updateOrderStatus,
+        deleteOrder,
         signUp,
         login,
         logout,

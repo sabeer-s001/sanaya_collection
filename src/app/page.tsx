@@ -6,6 +6,7 @@ import { useApp } from "@/context/AppContext";
 import Navbar from "@/components/Navbar";
 import HeroSlider from "@/components/HeroSlider";
 import ProductCard from "@/components/ProductCard";
+import ProductCardSkeleton from "@/components/ProductCardSkeleton";
 import Footer from "@/components/Footer";
 import CollectionsSection from "@/components/CollectionsSection";
 import PromotionalBanner from "@/components/PromotionalBanner";
@@ -17,7 +18,7 @@ import { motion } from "framer-motion";
 
 function HomeContent() {
   const router = useRouter();
-  const { products } = useApp();
+  const { products, productsLoading } = useApp();
 
   // Show a default slice of 8 products on the homepage (e.g. New Arrivals)
   const displayProducts = products.slice(0, 8);
@@ -48,21 +49,25 @@ function HomeContent() {
 
           {/* Product Cards Grid */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-            {displayProducts.map((product) => (
-              <ProductCard
-                key={product.id}
-                product={product}
-                badge={
-                  product.isBestSeller
-                    ? "best-seller"
-                    : product.isFastSelling
-                      ? "fast-selling"
-                      : product.isSale
-                        ? "sale"
-                        : undefined
-                }
-              />
-            ))}
+            {productsLoading
+              ? Array.from({ length: 8 }).map((_, i) => (
+                  <ProductCardSkeleton key={i} />
+                ))
+              : displayProducts.map((product) => (
+                  <ProductCard
+                    key={product.id}
+                    product={product}
+                    badge={
+                      product.isBestSeller
+                        ? "best-seller"
+                        : product.isFastSelling
+                          ? "fast-selling"
+                          : product.isSale
+                            ? "sale"
+                            : undefined
+                    }
+                  />
+                ))}
           </div>
 
           <div className="text-center mt-16">
@@ -97,9 +102,13 @@ function HomeContent() {
           </div>
 
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-            {products.filter(p => p.isBestSeller).slice(0, 4).map((product) => (
-              <ProductCard key={product.id} product={product} badge="best-seller" />
-            ))}
+            {productsLoading
+              ? Array.from({ length: 4 }).map((_, i) => (
+                  <ProductCardSkeleton key={i} />
+                ))
+              : products.filter(p => p.isBestSeller).slice(0, 4).map((product) => (
+                  <ProductCard key={product.id} product={product} badge="best-seller" />
+                ))}
           </div>
         </div>
       </section>

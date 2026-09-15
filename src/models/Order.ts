@@ -55,6 +55,7 @@ const OrderSchema = new mongoose.Schema(
       default: "Pending",
     },
     trackingNumber: { type: String, default: "" },
+    cancelReason: { type: String, default: "" },
     razorpayOrderId: { type: String },
     razorpayPaymentId: { type: String },
     razorpaySignature: { type: String },

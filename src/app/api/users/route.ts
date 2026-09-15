@@ -41,7 +41,9 @@ export async function POST(request: Request) {
     const newUser: User = {
       ...body,
       id: body.id || `usr-${Math.random().toString(36).substr(2, 9)}`,
-      role: body.role || "customer",
+      // Role is always forced to "customer" — admin accounts must be created
+      // directly in the database. The client-supplied role is intentionally ignored.
+      role: "customer",
       addresses: body.addresses || [],
       wishlist: body.wishlist || []
     };

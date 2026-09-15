@@ -242,6 +242,27 @@ export default function OrderDetailPage({ params }: Props) {
               </div>
             </div>
 
+            {/* Cancellation Banner with Reason */}
+            {(order.status === "Cancelled" || order.cancelReason) && (
+              <div className="bg-rose-50/80 border border-rose-200 rounded-2xl p-6 sm:p-8 space-y-3 text-rose-900 shadow-sm animate-fade-in">
+                <div className="flex items-center space-x-2 text-rose-700 font-serif font-bold text-lg border-b border-rose-200/60 pb-3">
+                  <AlertCircle className="w-6 h-6 text-rose-600 flex-shrink-0" />
+                  <span>Order Cancelled / Deleted</span>
+                </div>
+                <div className="space-y-1">
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-rose-600 block">
+                    Reason provided by Store Administrator:
+                  </span>
+                  <p className="text-sm font-semibold leading-relaxed bg-white/90 p-4 rounded-xl border border-rose-200/80 text-rose-950 font-sans shadow-2xs">
+                    &ldquo;{order.cancelReason || "Order was cancelled by administrator."}&rdquo;
+                  </p>
+                </div>
+                <p className="text-xs text-rose-700/90 pt-1">
+                  If you have questions regarding this cancellation or refund status, please contact our support team.
+                </p>
+              </div>
+            )}
+
             {/* 1. Delivery Progress Tracker Stepper (Only if not cancelled) */}
             {order.status !== "Cancelled" && (
               <div className="bg-white p-6 sm:p-8 border border-brand-primary/10 rounded-2xl shadow-sm space-y-6">

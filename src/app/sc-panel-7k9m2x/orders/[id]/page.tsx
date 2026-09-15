@@ -18,13 +18,16 @@ import {
   CheckCircle2, 
   AlertCircle,
   Clock,
-  ChevronRight
+  ChevronRight,
+  Trash2,
+  AlertTriangle,
+  X
 } from "lucide-react";
 
 export default function AdminOrderDetailPage({ params }: { params: { id: string } }) {
   const router = useRouter();
   const { id } = params;
-  const { orders, users, session, updateOrderStatus } = useApp();
+  const { orders, users, session, updateOrderStatus, deleteOrder } = useApp();
 
   // Find order from global state
   const orderFromState = orders.find((o) => o.id === id);
@@ -42,8 +45,16 @@ export default function AdminOrderDetailPage({ params }: { params: { id: string 
   const [status, setStatus] = useState<Order["status"]>("Pending");
   const [paymentStatus, setPaymentStatus] = useState<string>("Pending");
   const [trackingNumber, setTrackingNumber] = useState<string>("");
+  const [cancelReason, setCancelReason] = useState<string>("");
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [saveSuccess, setSaveSuccess] = useState<boolean>(false);
+
+  // Deletion Modal state
+  const [showDeleteModal, setShowDeleteModal] = useState<boolean>(false);
+  const [reasonPreset, setReasonPreset] = useState<string>("Out of Stock");
+  const [customReason, setCustomReason] = useState<string>("");
+  const [deleteMode, setDeleteMode] = useState<"cancel" | "permanent">("cancel");
+  const [isDeleting, setIsDeleting] = useState<boolean>(false);
 
   // Initialize fields once order is available
   useEffect(() => {
@@ -171,6 +182,32 @@ export default function AdminOrderDetailPage({ params }: { params: { id: string 
     }
   };
 
+  const handleConfirmDelete = async () => {
+    if (!order) return;
+    setIsDeleting(true);
+
+    const finalReason = customReason.trim() || reasonPreset;
+    const isPermanent = deleteMode === "permanent";
+
+    const success = await deleteOrder(order.id, finalReason, isPermanent);
+    setIsDeleting(false);
+
+    if (success) {
+      if (isPermanent) {
+        router.push("/sc-panel-7k9m2x/orders");
+      } else {
+        setOrder((prev) => prev ? { ...prev, status: "Cancelled", cancelReason: finalReason } : null);
+        setStatus("Cancelled");
+        setCancelReason(finalReason);
+        setShowDeleteModal(false);
+        setSaveSuccess(true);
+      }
+    } else {
+      setError("Failed to cancel/delete order. Please try again.");
+    }
+  };
+
+
   if (loading) {
     return (
       <div className="min-h-[50vh] flex flex-col items-center justify-center space-y-3">
@@ -187,7 +224,7 @@ export default function AdminOrderDetailPage({ params }: { params: { id: string 
         <h3 className="text-lg font-bold text-red-900">Failed to Load Order</h3>
         <p className="text-xs text-red-700 mt-2">{error}</p>
         <button
-          onClick={() => router.push("/admin/orders")}
+          onClick={() => router.push("/sc-panel-7k9m2x/orders")}
           className="mt-6 inline-flex items-center space-x-2 bg-white hover:bg-zinc-50 border border-zinc-200 text-zinc-700 px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-xs"
         >
           <ArrowLeft size={14} />
@@ -201,7 +238,7 @@ export default function AdminOrderDetailPage({ params }: { params: { id: string 
     return (
       <div className="text-center py-12">
         <p className="text-zinc-500">Order not found.</p>
-        <Link href="/admin/orders" className="text-teal-700 font-bold text-xs hover:underline mt-2 inline-block">
+        <Link href="/sc-panel-7k9m2x/orders" className="text-teal-700 font-bold text-xs hover:underline mt-2 inline-block">
           Go back to Orders
         </Link>
       </div>
@@ -219,9 +256,9 @@ export default function AdminOrderDetailPage({ params }: { params: { id: string 
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <div className="flex items-center space-x-2 text-[10px] font-bold text-zinc-400 uppercase tracking-widest">
-            <Link href="/admin" className="hover:text-teal-700 transition-colors">Admin</Link>
+            <Link href="/sc-panel-7k9m2x" className="hover:text-teal-700 transition-colors">Admin</Link>
             <ChevronRight size={10} />
-            <Link href="/admin/orders" className="hover:text-teal-700 transition-colors">Orders</Link>
+            <Link href="/sc-panel-7k9m2x/orders" className="hover:text-teal-700 transition-colors">Orders</Link>
             <ChevronRight size={10} />
             <span className="text-zinc-700 font-mono">{order.id}</span>
           </div>
@@ -245,7 +282,7 @@ export default function AdminOrderDetailPage({ params }: { params: { id: string 
 
         <div>
           <Link
-            href="/admin/orders"
+            href="/sc-panel-7k9m2x/orders"
             className="inline-flex items-center space-x-2 bg-white hover:bg-zinc-50 border border-zinc-200 text-zinc-700 px-4 py-2.5 rounded-xl text-xs font-bold transition-all shadow-xs"
           >
             <ArrowLeft size={14} className="text-zinc-500" />
@@ -564,6 +601,15 @@ export default function AdminOrderDetailPage({ params }: { params: { id: string 
                   </>
                 )}
               </button>
+
+              {/* Delete / Cancel Order Button */}
+              <button
+                onClick={() => setShowDeleteModal(true)}
+                className="w-full bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs py-3 px-4 rounded-xl font-bold uppercase tracking-wider flex items-center justify-center space-x-2 transition-colors shadow-xs"
+              >
+                <Trash2 size={14} />
+                <span>Delete / Cancel Order</span>
+              </button>
             </div>
           </div>
 
@@ -580,6 +626,120 @@ export default function AdminOrderDetailPage({ params }: { params: { id: string 
         </div>
 
       </div>
+
+      {/* ─── CONFIRMATION & REASON MODAL ─── */}
+      {showDeleteModal && order && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-900/60 backdrop-blur-xs animate-fade-in">
+          <div className="bg-white rounded-2xl border border-zinc-200 shadow-2xl max-w-lg w-full p-6 space-y-5 relative">
+            <button
+              onClick={() => setShowDeleteModal(false)}
+              className="absolute top-4 right-4 text-zinc-400 hover:text-zinc-600 p-1 rounded-lg"
+            >
+              <X size={18} />
+            </button>
+
+            <div className="flex items-start space-x-3">
+              <div className="w-10 h-10 bg-rose-100 rounded-full flex items-center justify-center text-rose-600 flex-shrink-0">
+                <AlertTriangle size={20} />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-zinc-900">Confirm Order Deletion / Cancellation</h3>
+                <p className="text-xs text-zinc-500 mt-1">
+                  Order <strong className="font-mono text-zinc-800">{order.id}</strong> ({order.shippingAddress.fullName} - ₹{order.totalAmount})
+                </p>
+              </div>
+            </div>
+
+            {/* Action Type Mode */}
+            <div className="space-y-2 bg-zinc-50 p-3.5 rounded-xl border border-zinc-200 text-xs">
+              <label className="block text-[10px] font-bold uppercase tracking-wider text-zinc-600">Deletion Mode</label>
+              <div className="space-y-2">
+                <label className="flex items-center space-x-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="deleteMode"
+                    value="cancel"
+                    checked={deleteMode === "cancel"}
+                    onChange={() => setDeleteMode("cancel")}
+                    className="text-rose-600 focus:ring-rose-500"
+                  />
+                  <span className="font-bold text-zinc-800">Cancel & Display Reason to Customer (Recommended)</span>
+                </label>
+                <label className="flex items-center space-x-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="deleteMode"
+                    value="permanent"
+                    checked={deleteMode === "permanent"}
+                    onChange={() => setDeleteMode("permanent")}
+                    className="text-rose-600 focus:ring-rose-500"
+                  />
+                  <span className="font-semibold text-rose-700">Permanently Delete Record from Database</span>
+                </label>
+              </div>
+            </div>
+
+            {/* Reason Selection */}
+            <div className="space-y-3">
+              <label className="block text-xs font-bold text-zinc-800">
+                Reason for Cancellation / Deletion <span className="text-rose-600">*</span>
+              </label>
+              <select
+                value={reasonPreset}
+                onChange={(e) => setReasonPreset(e.target.value)}
+                className="w-full bg-white border border-zinc-300 rounded-xl px-3 py-2.5 text-xs font-medium text-zinc-800 focus:border-rose-500 focus:outline-none"
+              >
+                <option value="Out of Stock">Product Out of Stock</option>
+                <option value="Customer Requested Cancellation">Customer Requested Cancellation</option>
+                <option value="Delivery Address Unserviceable">Delivery Location Unserviceable</option>
+                <option value="Payment Verification Failed">Payment / Fraud Guard Failed</option>
+                <option value="Duplicate Order">Duplicate / Test Order</option>
+                <option value="Other Reason">Other (Specify below)</option>
+              </select>
+
+              <textarea
+                value={customReason}
+                onChange={(e) => setCustomReason(e.target.value)}
+                placeholder="Enter detailed explanation for the client (optional)..."
+                rows={3}
+                className="w-full bg-white border border-zinc-300 rounded-xl p-3 text-xs text-zinc-800 focus:border-rose-500 focus:outline-none placeholder-zinc-400"
+              />
+              <p className="text-[10px] text-zinc-400">
+                This reason will be stored and displayed to the customer when they view their order history.
+              </p>
+            </div>
+
+            {/* Modal Controls */}
+            <div className="flex items-center justify-end space-x-3 pt-3 border-t border-zinc-100">
+              <button
+                type="button"
+                onClick={() => setShowDeleteModal(false)}
+                className="px-4 py-2.5 bg-white border border-zinc-300 text-zinc-700 text-xs font-bold rounded-xl hover:bg-zinc-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDelete}
+                disabled={isDeleting}
+                className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 disabled:bg-rose-400 text-white text-xs font-bold rounded-xl uppercase tracking-wider flex items-center space-x-1.5 transition-colors shadow-xs"
+              >
+                {isDeleting ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    <span>Processing...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 size={14} />
+                    <span>Confirm Delete</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

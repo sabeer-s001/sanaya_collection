@@ -129,13 +129,13 @@ export default function AdminAnalyticsPage() {
           </div>
           <div className="grid grid-cols-2 gap-4 pt-4">
             <button
-              onClick={() => router.push("/admin/products")}
+              onClick={() => router.push("/sc-panel-7k9m2x/products")}
               className="bg-teal-700 hover:bg-teal-800 text-white text-xs py-3 px-4 rounded-xl font-bold uppercase tracking-wider text-center transition-colors shadow-xs"
             >
               Manage Inventory
             </button>
             <button
-              onClick={() => router.push("/admin/orders")}
+              onClick={() => router.push("/sc-panel-7k9m2x/orders")}
               className="bg-zinc-100 hover:bg-zinc-200 text-zinc-800 text-xs py-3 px-4 rounded-xl font-bold uppercase tracking-wider text-center border border-zinc-200 transition-colors shadow-xs"
             >
               Manage Orders

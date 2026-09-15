@@ -26,7 +26,7 @@ export default function AdminLayout({
 
   const handleLogout = () => {
     logout();
-    router.push("/admin/login");
+    router.push("/sc-panel-7k9m2x/login");
   };
 
   // Route protection
@@ -45,7 +45,7 @@ export default function AdminLayout({
   }, [session]);
 
   // Bypass route protection for the admin login page
-  if (pathname === "/admin/login") {
+  if (pathname === "/sc-panel-7k9m2x/login") {
     return <>{children}</>;
   }
 
@@ -68,7 +68,7 @@ export default function AdminLayout({
           </p>
           <div className="flex flex-col space-y-2 pt-2">
             <button
-              onClick={() => router.push("/admin/login")}
+              onClick={() => router.push("/sc-panel-7k9m2x/login")}
               className="w-full bg-zinc-950 hover:bg-zinc-800 text-white text-xs py-3 px-4 rounded-xl font-bold uppercase tracking-wider transition-colors shadow-sm"
             >
               Sign In to Admin Account
@@ -97,11 +97,11 @@ export default function AdminLayout({
   }
 
   const navItems = [
-    { href: "/admin", label: "Overview Stats", icon: BarChart2 },
-    { href: "/admin/products", label: "Product Inventory", icon: Package },
-    { href: "/admin/orders", label: "Client Orders", icon: ShoppingBag },
-    { href: "/admin/customers", label: "User Registry", icon: Users },
-    { href: "/admin/hero", label: "Hero Slider Images", icon: ImageIcon },
+    { href: "/sc-panel-7k9m2x", label: "Overview Stats", icon: BarChart2 },
+    { href: "/sc-panel-7k9m2x/products", label: "Product Inventory", icon: Package },
+    { href: "/sc-panel-7k9m2x/orders", label: "Client Orders", icon: ShoppingBag },
+    { href: "/sc-panel-7k9m2x/customers", label: "User Registry", icon: Users },
+    { href: "/sc-panel-7k9m2x/hero", label: "Hero Slider Images", icon: ImageIcon },
   ];
 
   return (

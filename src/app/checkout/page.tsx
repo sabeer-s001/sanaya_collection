@@ -29,6 +29,7 @@ export default function CheckoutPage() {
     session, 
     discountRate, 
     placeOrder,
+    addVerifiedOrder,
     clearCart
   } = useApp();
 
@@ -146,60 +147,62 @@ export default function CheckoutPage() {
     setIsSubmitting(true);
 
     try {
-      // isCOD is computed above from paymentMethod state
-
-      let order = null;
-
       if (!isCOD) {
-        // Step 1: Create the pending order in our database first
-        order = await placeOrder(addressForm, paymentMethod, "Pending");
-        if (!order) {
-          throw new Error("Failed to initialize order on server. Please try again.");
-        }
+        // Online Payment via Razorpay
+        // Build order payload without saving to DB yet
+        const orderData = {
+          items: cart,
+          shippingAddress: addressForm,
+          paymentMethod,
+          shippingCost: shipping,
+          discountAmount,
+          totalAmount: finalTotal,
+          userId: session?.id || "guest",
+        };
 
-        // Step 2: Initiate online payment via Razorpay Checkout
-        const paymentSuccess = await initiateRazorpayPayment({
-          amount: finalTotal - codFee,
+        // Initiate Razorpay checkout modal
+        const result = await initiateRazorpayPayment({
+          amount: finalTotal,
           cartCount,
           fullName: session?.fullName || addressForm.fullName,
           email: session?.email || "",
           phone: addressForm.phone,
-          orderId: order.id,
           paymentMethod,
+          orderData,
         });
-        
-        if (!paymentSuccess) {
-          // User dismissed the modal; order remains Pending in DB
+
+        if (result.cancelled) {
           setIsSubmitting(false);
+          setValidationError("Payment process was cancelled. Your order has not been placed.");
           return;
         }
 
-        // Step 3: Fetch updated order details from MongoDB (with AWB, courier name, etc.)
-        const updatedRes = await fetch(`/api/orders/${order.id}`);
-        if (updatedRes.ok) {
-          const updatedOrder = await updatedRes.json();
-          order = updatedOrder;
+        if (result.success && result.order) {
+          addVerifiedOrder(result.order);
+          setPlacedOrderDetails(result.order);
+          setOrderSuccess(true);
+          setIsSubmitting(false);
+          triggerConfetti();
+        } else {
+          setIsSubmitting(false);
+          setValidationError("Payment verification failed. Please try again.");
         }
-
-        // Clear the cart on frontend after successful payment verification
-        clearCart();
       } else {
-        // Place Cash On Delivery order directly
-        order = await placeOrder(addressForm, paymentMethod);
-      }
+        // Cash On Delivery Flow
+        const order = await placeOrder(addressForm, paymentMethod);
+        setIsSubmitting(false);
 
-      setIsSubmitting(false);
-
-      if (order) {
-        setPlacedOrderDetails(order);
-        setOrderSuccess(true);
-        triggerConfetti();
-      } else {
-        setValidationError("Failed to place order. Please try again.");
+        if (order) {
+          setPlacedOrderDetails(order);
+          setOrderSuccess(true);
+          triggerConfetti();
+        } else {
+          setValidationError("Failed to place Cash On Delivery order. Please try again.");
+        }
       }
     } catch (error: any) {
       setIsSubmitting(false);
-      setValidationError(error.message || "Payment failed. Please try again.");
+      setValidationError(error.message || "Payment or order placement failed. Please try again.");
     }
   };
 

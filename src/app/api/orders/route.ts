@@ -66,6 +66,16 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
+
+    const isCOD = body.paymentMethod === "Cash On Delivery (COD)";
+    // Enforce that online payment orders must be verified via /api/razorpay/verify
+    if (!isCOD && body.paymentStatus !== "Paid") {
+      return NextResponse.json(
+        { error: "Online orders must complete payment verification before order creation." },
+        { status: 400 }
+      );
+    }
+
     await dbConnect();
 
     // Check for customerId cookie or create a new one
@@ -74,6 +84,7 @@ export async function POST(request: Request) {
     if (!customerId) {
       customerId = `cust_${crypto.randomUUID()}`;
     }
+
 
     const session = getSessionUser();
     const phone = body.shippingAddress?.phone || body.phone || "";
@@ -127,8 +138,6 @@ export async function POST(request: Request) {
     }
 
     const serverShippingCost = (freeShippingThreshold > 0 && serverTaxableAmount >= freeShippingThreshold) || serverTaxableAmount === 0 ? 0 : shippingFee;
-    
-    const isCOD = body.paymentMethod === "Cash On Delivery (COD)";
     const codFee = 0;
     
     const serverTotalAmount = serverTaxableAmount + serverShippingCost + codFee;
@@ -146,8 +155,8 @@ export async function POST(request: Request) {
       phone,
       phoneVerificationStatus: "unverified",
       date: body.date || new Date().toISOString().split("T")[0],
-      status: body.status || "Pending",
-      paymentStatus: body.paymentStatus || (isCOD ? "Pending" : "Paid"),
+      status: body.status || "Processing",
+      paymentStatus: isCOD ? "Pending" : "Paid",
       shippingCost: serverShippingCost,
       tax: serverTax,
       discountAmount: validatedDiscountAmount,

@@ -31,7 +31,7 @@ export default function AdminLoginPage() {
         const res = await login(email, password);
         if (res.success && res.user) {
           if (res.user.role === "admin") {
-            router.replace("/admin");
+            router.replace("/sc-panel-7k9m2x");
           } else {
             setError("Access denied. Your account does not have store administrator privileges.");
           }
@@ -44,7 +44,8 @@ export default function AdminLoginPage() {
         setIsLoading(false);
       }
     } else {
-      // Sign Up (Register Admin)
+      // Sign Up — always creates a customer account.
+      // Admin accounts must be provisioned directly in the database.
       if (!fullName || !email || !password) {
         setError("Please complete all registration fields.");
         return;
@@ -57,14 +58,15 @@ export default function AdminLoginPage() {
 
       setIsLoading(true);
       try {
-        const res = await signUp(fullName, email, password, "admin");
+        const res = await signUp(fullName, email, password);
         if (res.success) {
-          router.replace("/admin");
+          // New accounts are customers — redirect to the storefront, not admin
+          router.replace("/");
         } else {
           setError(res.message || "Registration failed. Please try again.");
         }
       } catch (err: any) {
-        setError(err.message || "Failed to register admin account.");
+        setError(err.message || "Failed to register account.");
       } finally {
         setIsLoading(false);
       }
@@ -86,7 +88,7 @@ export default function AdminLoginPage() {
           <p className="text-xs text-zinc-400">
             {mode === "login"
               ? "Sign in with your admin credentials to manage store operations."
-              : "Register a new store administrator account."}
+              : "Create a customer account. Admin access is managed separately."}
           </p>
         </div>
 
@@ -120,7 +122,7 @@ export default function AdminLoginPage() {
             }`}
           >
             <UserPlus size={14} />
-            <span>Register Admin</span>
+            <span>Register Account</span>
           </button>
         </div>
 
@@ -148,7 +150,7 @@ export default function AdminLoginPage() {
                   required
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
-                  placeholder="Store Manager Name"
+                  placeholder="Your full name"
                   className="w-full bg-zinc-900/80 border border-zinc-800 focus:border-rose-500 focus:ring-1 focus:ring-rose-500 rounded-xl pl-10 pr-4 py-3 text-xs text-white placeholder-zinc-600 outline-none transition-all"
                 />
               </div>
@@ -157,7 +159,7 @@ export default function AdminLoginPage() {
 
           <div>
             <label className="block text-[11px] font-bold text-zinc-400 uppercase tracking-wider mb-1.5">
-              Admin Email
+              {mode === "signup" ? "Email" : "Admin Email"}
             </label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-zinc-500">
@@ -168,7 +170,7 @@ export default function AdminLoginPage() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="admin@sanaya.com"
+                placeholder={mode === "signup" ? "you@example.com" : "admin@sanaya.com"}
                 className="w-full bg-zinc-900/80 border border-zinc-800 focus:border-rose-500 focus:ring-1 focus:ring-rose-500 rounded-xl pl-10 pr-4 py-3 text-xs text-white placeholder-zinc-600 outline-none transition-all"
               />
             </div>
@@ -201,11 +203,11 @@ export default function AdminLoginPage() {
             {isLoading ? (
               <>
                 <Loader2 size={16} className="animate-spin" />
-                <span>{mode === "login" ? "Authenticating Admin..." : "Creating Admin Account..."}</span>
+                <span>{mode === "login" ? "Authenticating..." : "Creating Account..."}</span>
               </>
             ) : (
               <>
-                <span>{mode === "login" ? "Sign In to Admin Panel" : "Register Admin Account"}</span>
+                <span>{mode === "login" ? "Sign In to Admin Panel" : "Create Account"}</span>
                 <ArrowRight size={14} />
               </>
             )}
@@ -223,7 +225,7 @@ export default function AdminLoginPage() {
               }}
               className="text-xs text-rose-400 hover:text-rose-300 transition-colors font-medium"
             >
-              Need to create an admin account? Register Admin Account
+              Need an account? Register here
             </button>
           ) : (
             <button
