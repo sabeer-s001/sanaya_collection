@@ -23,6 +23,7 @@ import {
   Package,
   Headphones
 } from "lucide-react";
+import { PRODUCT_CATEGORIES } from "@/lib/constants";
 import { motion, AnimatePresence } from "framer-motion";
 
 export default function Navbar() {
@@ -49,8 +50,8 @@ export default function Navbar() {
   // Search state
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<Product[]>([]);
-  const [popularSearches] = useState(["Shalwar Kameez", "Kurti", "Bridal Wear", "Party Wear"]);
-  const [categorySuggestions] = useState(["Shalwar Kameez", "Kurtis", "Bridal Wear", "Party Wear", "Casuals"]);
+  const [popularSearches] = useState(["Pakistani Suit", "Party Wear", "Stitched", "Unstitched"]);
+  const [categorySuggestions] = useState(PRODUCT_CATEGORIES);
 
   // Scroll effect
   useEffect(() => {
@@ -173,17 +174,17 @@ export default function Navbar() {
                   Shop <ChevronDown size={14} className="ml-1" />
                 </button>
                 {/* Mega Menu Dropdown */}
-                <div className="absolute left-1/2 -translate-x-1/2 top-full w-[600px] bg-white border border-brand-lightGray shadow-xl rounded-b-xl opacity-0 translate-y-3 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto transition-all duration-300 grid grid-cols-2 p-6 gap-6 z-50 text-brand-text">
-                  <div>
+                <div className="absolute left-1/2 -translate-x-1/2 top-full w-[680px] bg-white border border-brand-lightGray shadow-xl rounded-b-xl opacity-0 translate-y-3 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto transition-all duration-300 grid grid-cols-5 p-6 gap-6 z-50 text-brand-text">
+                  <div className="col-span-3">
                     <h4 className="font-serif text-xs text-brand-accent tracking-widest font-semibold uppercase border-b border-brand-lightGray pb-2 mb-3">
                       By Category
                     </h4>
-                    <ul className="space-y-2 text-xs normal-case text-brand-darkGray">
+                    <ul className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs normal-case text-brand-darkGray max-h-72 overflow-y-auto pr-1">
                       {categorySuggestions.map((cat) => (
                         <li key={cat}>
                           <button
                             onClick={() => handleCategoryClick(cat)}
-                            className="hover:text-brand-primary hover:translate-x-1 transition-all"
+                            className="hover:text-brand-primary hover:translate-x-1 transition-all text-left truncate w-full"
                           >
                             {cat}
                           </button>
@@ -191,18 +192,18 @@ export default function Navbar() {
                       ))}
                     </ul>
                   </div>
-                  <div className="bg-brand-bg rounded-lg p-4 flex flex-col justify-between border border-brand-primary/10">
+                  <div className="col-span-2 bg-brand-bg rounded-lg p-4 flex flex-col justify-between border border-brand-primary/10">
                     <div>
-                      <p className="font-serif text-sm font-semibold text-brand-text mb-1">Bridal & Party Wear</p>
+                      <p className="font-serif text-sm font-semibold text-brand-text mb-1">Party Wear Collection</p>
                       <p className="text-[11px] text-brand-darkGray normal-case leading-relaxed">
-                        Handcrafted wedding ensembles and festive wear with heavy embellishments, Zari work, and premium dupattas.
+                        Handcrafted celebratory ensembles and festive wear with heavy embellishments, Zari work, and premium dupattas.
                       </p>
                     </div>
                     <Link
-                      href="/shop?category=Bridal Wear"
+                      href="/shop?category=Party Wear"
                       className="text-[10px] tracking-widest font-semibold text-brand-accent flex items-center hover:text-brand-primary mt-4"
                     >
-                      EXPLORE BRIDAL <ArrowRight size={12} className="ml-1" />
+                      EXPLORE PARTY WEAR <ArrowRight size={12} className="ml-1" />
                     </Link>
                   </div>
                 </div>
@@ -614,19 +615,18 @@ export default function Navbar() {
                         <h4 className="font-serif text-xs text-brand-text uppercase tracking-widest font-semibold mb-4">
                           Shop By Category
                         </h4>
-                        <ul className="space-y-3 text-xs">
+                        <div className="grid grid-cols-2 gap-2 text-xs">
                           {categorySuggestions.map((cat) => (
-                            <li key={cat}>
-                              <button
-                                onClick={() => handleCategoryClick(cat)}
-                                className="text-brand-darkGray hover:text-brand-text flex items-center transition-all duration-300 hover:translate-x-1 group"
-                              >
-                                <span className="w-1.5 h-1.5 rounded-full bg-brand-lightGray mr-2 group-hover:bg-brand-accent transition-colors" />
-                                <span>{cat}</span>
-                              </button>
-                            </li>
+                            <button
+                              key={cat}
+                              onClick={() => handleCategoryClick(cat)}
+                              className="text-brand-darkGray hover:text-brand-text flex items-center transition-all duration-300 hover:translate-x-1 group text-left truncate"
+                            >
+                              <span className="w-1.5 h-1.5 rounded-full bg-brand-lightGray mr-2 group-hover:bg-brand-accent transition-colors flex-shrink-0" />
+                              <span className="truncate">{cat}</span>
+                            </button>
                           ))}
-                        </ul>
+                        </div>
                       </div>
 
                       {/* Featured Brand Info */}
@@ -762,12 +762,12 @@ export default function Navbar() {
 
                 <div>
                   <h4 className="font-serif text-[10px] text-brand-accent tracking-widest uppercase font-bold mb-3">Shop Categories</h4>
-                  <ul className="space-y-3 text-xs uppercase tracking-wide text-brand-darkGray">
+                  <ul className="grid grid-cols-2 gap-x-2 gap-y-2 text-xs uppercase tracking-wide text-brand-darkGray">
                     {categorySuggestions.map((cat) => (
                       <li key={cat}>
                         <button
                           onClick={() => handleCategoryClick(cat)}
-                          className="w-full text-left hover:text-brand-primary py-1"
+                          className="w-full text-left hover:text-brand-primary py-1 truncate"
                         >
                           {cat}
                         </button>

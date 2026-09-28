@@ -7,6 +7,7 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import ProductCard from "@/components/ProductCard";
 import ProductCardSkeleton from "@/components/ProductCardSkeleton";
+import { PRODUCT_CATEGORIES } from "@/lib/constants";
 
 function ShopContent() {
   const router = useRouter();
@@ -45,7 +46,7 @@ function ShopContent() {
     let filtered = products;
 
     if (selectedCategory !== "All") {
-      filtered = filtered.filter(p => p.category === selectedCategory);
+      filtered = filtered.filter(p => p.category?.toLowerCase() === selectedCategory.toLowerCase());
     }
 
     if (showBestSellers) {
@@ -84,6 +85,48 @@ function ShopContent() {
           <h1 className="font-serif text-3xl md:text-5xl font-medium tracking-wide text-brand-text">
             {getPageTitle()}
           </h1>
+        </div>
+      </div>
+
+      {/* Category Pills Filter Bar */}
+      <div className="bg-white border-b border-neutral-200/80 sticky top-[60px] sm:top-[70px] z-20 shadow-xs">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center space-x-2 overflow-x-auto scrollbar-none">
+          <button
+            onClick={() => {
+              setSelectedCategory("All");
+              setShowBestSellers(false);
+              setShowSale(false);
+              router.push("/shop");
+            }}
+            className={`flex-shrink-0 px-4 py-1.5 rounded-full text-xs uppercase tracking-wider font-semibold transition-all ${
+              selectedCategory === "All" && !showBestSellers && !showSale
+                ? "bg-brand-accent text-white shadow-xs"
+                : "bg-neutral-100 text-neutral-600 hover:bg-neutral-200"
+            }`}
+          >
+            All Products
+          </button>
+          {PRODUCT_CATEGORIES.map((cat) => {
+            const isSelected = selectedCategory.toLowerCase() === cat.toLowerCase();
+            return (
+              <button
+                key={cat}
+                onClick={() => {
+                  setSelectedCategory(cat);
+                  setShowBestSellers(false);
+                  setShowSale(false);
+                  router.push(`/shop?category=${encodeURIComponent(cat)}`);
+                }}
+                className={`flex-shrink-0 px-4 py-1.5 rounded-full text-xs uppercase tracking-wider font-semibold transition-all ${
+                  isSelected
+                    ? "bg-brand-accent text-white shadow-xs"
+                    : "bg-neutral-100 text-neutral-600 hover:bg-neutral-200"
+                }`}
+              >
+                {cat}
+              </button>
+            );
+          })}
         </div>
       </div>
 

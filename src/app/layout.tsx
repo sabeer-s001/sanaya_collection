@@ -27,9 +27,9 @@ const outfit = Outfit({
 });
 
 export const metadata: Metadata = {
-  title: "Sanaya Collection | Premium Shalwar Kameez, Kurtis & Luxury Ethnic Wear",
-  description: "Shop the finest luxury Shalwar Kameez, Kurtis, Bridal Wear, Party Wear, and Casuals online. Experience premium fabrics and elegance crafted for every woman with fast shipping across India.",
-  keywords: "Shalwar Kameez, Kurtis, Bridal Wear, Party Wear, Casuals, Ethnic Wear, Women's Fashion India, Sanaya Collection",
+  title: "Sanaya Collection | Premium Pakistani Suits, Ethnic Wear & Luxury Collections",
+  description: "Shop the finest luxury Pakistani Suits, Stitched & Unstitched Suits, Party Wear, Daily Wear, Kurtis, and Festive Collections online with fast shipping across India.",
+  keywords: "Pakistani Suits, Stitched Suits, Unstitched Suits, Shalwar Kameez, Kurtis, Party Wear, Daily Wear, Casual Wear, Western Wear, Night Wear, Embroidery, Printed Suits, Patchwork, Sanaya Collection",
   metadataBase: new URL("https://sanayacollection.com"),
   icons: {
     icon: [

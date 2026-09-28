@@ -7,6 +7,7 @@ import {
   Instagram, 
   Facebook, 
   MessageCircle, // Representing WhatsApp
+  Youtube,
   Mail, 
   Phone, 
   MapPin, 
@@ -19,7 +20,7 @@ export default function Footer() {
   const router = useRouter();
 
   const handleCategoryClick = (category: string) => {
-    router.push(`/?category=${encodeURIComponent(category)}`);
+    router.push(`/shop?category=${encodeURIComponent(category)}`);
   };
 
   return (
@@ -101,6 +102,15 @@ export default function Footer() {
               >
                 <MessageCircle size={16} />
               </a>
+              <a 
+                href="https://www.youtube.com/@Sana_Collection786" 
+                target="_blank" 
+                rel="noreferrer" 
+                className="p-2 bg-white/5 rounded-full hover:bg-red-600 hover:text-white transition-colors"
+                aria-label="YouTube"
+              >
+                <Youtube size={16} />
+              </a>
             </div>
           </div>
 
@@ -114,10 +124,16 @@ export default function Footer() {
                 <Link href="/" className="hover:text-brand-primary transition-colors">Home</Link>
               </li>
               <li>
-                <button onClick={() => handleCategoryClick("Shalwar Kameez")} className="hover:text-brand-primary transition-colors">Shalwar Kameez</button>
+                <button onClick={() => handleCategoryClick("Pakistani Suit")} className="hover:text-brand-primary transition-colors">Pakistani Suits</button>
               </li>
               <li>
-                <button onClick={() => handleCategoryClick("Kurtis")} className="hover:text-brand-primary transition-colors">Kurtis</button>
+                <button onClick={() => handleCategoryClick("Party Wear")} className="hover:text-brand-primary transition-colors">Party Wear</button>
+              </li>
+              <li>
+                <button onClick={() => handleCategoryClick("Stitched")} className="hover:text-brand-primary transition-colors">Stitched</button>
+              </li>
+              <li>
+                <button onClick={() => handleCategoryClick("Daily Wear")} className="hover:text-brand-primary transition-colors">Daily Wear</button>
               </li>
               <li>
                 <Link href="/?filter=best-sellers" className="hover:text-brand-primary transition-colors">Best Sellers</Link>

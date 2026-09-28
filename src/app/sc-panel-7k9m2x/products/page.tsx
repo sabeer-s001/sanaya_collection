@@ -6,8 +6,10 @@ import {
   Plus, 
   Trash2, 
   Edit, 
-  ArrowLeft
+  ArrowLeft,
+  Filter
 } from "lucide-react";
+import { PRODUCT_CATEGORIES } from "@/lib/constants";
 
 export default function AdminProductsPage() {
   const { 
@@ -22,9 +24,11 @@ export default function AdminProductsPage() {
   const [isAddingProduct, setIsAddingProduct] = useState(false);
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
   
+  const [selectedFilterCategory, setSelectedFilterCategory] = useState<string>("All");
+
   const [productForm, setProductForm] = useState<Omit<Product, "id" | "rating" | "reviewCount">>({
     name: "",
-    category: "Shalwar Kameez",
+    category: PRODUCT_CATEGORIES[0],
     originalPrice: 2999,
     salePrice: 1999,
     discount: 33,
@@ -128,7 +132,7 @@ export default function AdminProductsPage() {
     setIsAddingProduct(false);
     setProductForm({
       name: "",
-      category: "Shalwar Kameez",
+      category: PRODUCT_CATEGORIES[0],
       originalPrice: 2999,
       salePrice: 1999,
       discount: 33,
@@ -191,6 +195,32 @@ export default function AdminProductsPage() {
             </button>
           </div>
 
+          {/* FILTER BAR */}
+          <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-3 rounded-xl border border-zinc-200">
+            <div className="flex items-center space-x-2">
+              <Filter size={14} className="text-zinc-400" />
+              <span className="text-xs font-semibold text-zinc-600">Filter by Category:</span>
+              <select
+                value={selectedFilterCategory}
+                onChange={(e) => setSelectedFilterCategory(e.target.value)}
+                className="bg-zinc-50 border border-zinc-200 text-zinc-700 text-xs rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-teal-600"
+              >
+                <option value="All">All Categories ({products.length})</option>
+                {PRODUCT_CATEGORIES.map((cat) => {
+                  const count = products.filter(p => p.category?.toLowerCase() === cat.toLowerCase()).length;
+                  return (
+                    <option key={cat} value={cat}>
+                      {cat} ({count})
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+            <span className="text-xs text-zinc-400">
+              Showing {selectedFilterCategory === "All" ? products.length : products.filter(p => p.category?.toLowerCase() === selectedFilterCategory.toLowerCase()).length} of {products.length} products
+            </span>
+          </div>
+
           {/* PRODUCTS TABLE */}
           <div className="bg-white rounded-2xl border border-zinc-200 overflow-hidden shadow-xs">
             <div className="overflow-x-auto">
@@ -207,14 +237,24 @@ export default function AdminProductsPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-zinc-200 font-medium">
-                  {products.length === 0 ? (
-                    <tr>
-                      <td colSpan={7} className="p-8 text-center text-zinc-400">
-                        No products found. Click &quot;Add New Product&quot; to create one.
-                      </td>
-                    </tr>
-                  ) : (
-                    products.map((product) => (
+                  {(() => {
+                    const displayedProducts = selectedFilterCategory === "All" 
+                      ? products 
+                      : products.filter(p => p.category?.toLowerCase() === selectedFilterCategory.toLowerCase());
+                    
+                    if (displayedProducts.length === 0) {
+                      return (
+                        <tr>
+                          <td colSpan={7} className="p-8 text-center text-zinc-400">
+                            {products.length === 0 
+                              ? "No products found. Click \"Add New Product\" to create one."
+                              : `No products found in category "${selectedFilterCategory}".`}
+                          </td>
+                        </tr>
+                      );
+                    }
+
+                    return displayedProducts.map((product) => (
                       <tr key={product.id} className="hover:bg-zinc-50/50 transition-colors">
                         <td className="p-4 border-r border-zinc-100 flex items-center space-x-3">
                           <div className="w-10 h-12 rounded-lg overflow-hidden border border-zinc-200 bg-zinc-50 flex-shrink-0 shadow-xs">
@@ -269,8 +309,8 @@ export default function AdminProductsPage() {
                           </div>
                         </td>
                       </tr>
-                    ))
-                  )}
+                    ));
+                  })()}
                 </tbody>
               </table>
             </div>
@@ -322,11 +362,12 @@ export default function AdminProductsPage() {
                   onChange={(e) => setProductForm(p => ({ ...p, category: e.target.value }))}
                   className="w-full bg-white text-xs px-3 py-2.5 rounded-lg border border-zinc-300 focus:border-rose-500 focus:ring-1 focus:ring-rose-500 focus:outline-none transition-all uppercase font-medium"
                 >
-                  <option value="Shalwar Kameez">Shalwar Kameez</option>
-                  <option value="Kurtis">Kurtis</option>
-                  <option value="Bridal Wear">Bridal Wear</option>
-                  <option value="Party Wear">Party Wear</option>
-                  <option value="Casuals">Casuals</option>
+                  {PRODUCT_CATEGORIES.map((cat) => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                  {!PRODUCT_CATEGORIES.includes(productForm.category as any) && productForm.category && (
+                    <option value={productForm.category}>{productForm.category}</option>
+                  )}
                 </select>
               </div>
 

@@ -7,8 +7,9 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import ProductCard from "@/components/ProductCard";
 import { Search, ArrowRight, X } from "lucide-react";
+import { PRODUCT_CATEGORIES } from "@/lib/constants";
 
-const POPULAR_SEARCHES = ["Shalwar Kameez", "Kurti", "Bridal Wear", "Party Wear"];
+const POPULAR_SEARCHES = ["Pakistani Suit", "Party Wear", "Stitched", "Unstitched", "Embroidery"];
 
 function SearchContent() {
   const router = useRouter();
@@ -161,7 +162,7 @@ function SearchContent() {
                   Browse Popular Categories
                 </h4>
                 <div className="flex flex-wrap justify-center gap-3">
-                  {["Shalwar Kameez", "Kurtis", "Bridal Wear", "Party Wear", "Casuals"].map((cat) => (
+                  {PRODUCT_CATEGORIES.map((cat) => (
                     <button
                       key={cat}
                       onClick={() => router.push(`/shop?category=${encodeURIComponent(cat)}`)}
